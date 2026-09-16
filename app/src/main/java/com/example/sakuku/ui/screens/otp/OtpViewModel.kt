@@ -77,11 +77,20 @@ class OtpViewModel @Inject constructor(
                 }
             }
             OtpMode.RESET_PASSWORD -> {
-                // Backend gak punya endpoint verify-only buat alur reset password - kode ini
-                // baru divalidasi beneran pas POST /customer/reset-password (layar Ganti
-                // Password berikutnya, yang ngirim email+code+newPassword sekaligus). Di sini
-                // cuma mastiin 6 digit udah keisi, terus lanjut bawa kode-nya ke sana.
-                _uiState.update { it.copy(verified = true) }
+                // Sekarang beneran divalidasi di sini lewat customer/verify-reset-otp (cek
+                // doang, gak konsumsi kode) - gak bisa lagi lanjut ke Ganti Password pakai
+                // kode asal 6 digit. Konsumsi kode yang sebenarnya (ditandai used) tetap
+                // kejadian sekali pas POST /customer/reset-password di-submit nanti.
+                viewModelScope.launch {
+                    _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
+                    authRepository.verifyResetOtp(state.email, state.code)
+                        .onSuccess { _uiState.update { it.copy(isSubmitting = false, verified = true) } }
+                        .onFailure { e ->
+                            _uiState.update {
+                                it.copy(isSubmitting = false, errorMessage = e.message ?: "Kode OTP salah atau sudah kedaluwarsa")
+                            }
+                        }
+                }
             }
         }
     }

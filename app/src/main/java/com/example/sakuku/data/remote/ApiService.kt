@@ -2,6 +2,7 @@ package com.example.sakuku.data.remote
 
 import com.example.sakuku.data.remote.dto.ApiResponse
 import com.example.sakuku.data.remote.dto.BungaTenorResponse
+import com.example.sakuku.data.remote.dto.CustomerChangePasswordRequest
 import com.example.sakuku.data.remote.dto.CustomerMeResponse
 import com.example.sakuku.data.remote.dto.CustomerUpdateRequest
 import com.example.sakuku.data.remote.dto.ForgotPasswordRequest
@@ -48,6 +49,12 @@ interface ApiService {
     @POST("customer/forgot-password")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): ApiResponse<JsonElement>
 
+    // Cek validitas kode OTP reset-password doang, gak konsumsi kode-nya - dipanggil di layar
+    // Verifikasi biar gak bisa lanjut ke Ganti Password pakai kode asal-asalan. Reuse
+    // VerifyOtpRequest, shape-nya sama ({email, code}).
+    @POST("customer/verify-reset-otp")
+    suspend fun verifyResetOtp(@Body request: VerifyOtpRequest): ApiResponse<JsonElement>
+
     @POST("customer/reset-password")
     suspend fun resetPassword(@Body request: ResetPasswordRequest): ApiResponse<JsonElement>
 
@@ -64,6 +71,9 @@ interface ApiService {
 
     @PATCH("customer/me")
     suspend fun updateCustomerMe(@Body request: CustomerUpdateRequest): ApiResponse<CustomerMeResponse>
+
+    @PATCH("customer/change-password")
+    suspend fun changeCustomerPassword(@Body request: CustomerChangePasswordRequest): ApiResponse<JsonElement>
 
     @POST("pengajuan")
     suspend fun createPengajuan(@Body request: PengajuanRequest): PengajuanApiResponse

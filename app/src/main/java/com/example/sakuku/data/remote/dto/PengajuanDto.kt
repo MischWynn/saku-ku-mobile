@@ -34,7 +34,11 @@ data class PengajuanMeResponse(
     val nominalDisetujui: Double? = null,
     val status: String,
     val tujuanPinjaman: String? = null,
-    val tanggalPengajuan: String? = null
+    val tanggalPengajuan: String? = null,
+    // Diisi backend (PengajuanService.disburse()) pas status pindah ke DISBURSED - field baru
+    // 15 Sept 2026, jadi data lama yang udah DISBURSED sebelum field ini ada bakal null.
+    // Dipakai buat ngitung jatuh tempo tagihan (BayarViewModel), bukan cuma ditampilin mentah.
+    val tanggalPencairan: String? = null
 )
 
 // Response GET /pengajuan/{id}/history/me - field persis PengajuanHistoryCustomerDTO.java

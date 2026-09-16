@@ -26,6 +26,7 @@ android {
     compileSdk {
         version = release(37)
     }
+    compileSdkMinor = 2
 
     defaultConfig {
         applicationId = "com.example.sakuku"
@@ -111,6 +112,13 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.datastore.preferences)
+
+    // 2.0.0 belum pernah beneran dirilis stabil di Maven (cuma ada -alpha/-beta/-rc) - itu
+    // yang bikin build gagal resolve dependency ("Could not find dev.chrisbanes.haze:haze:2.0.0").
+    // Diganti ke 1.7.3, rilis stabil terakhir sebelum garis 2.0 - biar gak nambah 1 lagi ke daftar
+    // version-clash yang udah beberapa kali kejadian di project ini (Hilt/AGP/Compose BOM).
+    implementation("dev.chrisbanes.haze:haze:2.0.0-beta03")
+    implementation("dev.chrisbanes.haze:haze-blur:2.0.0-beta03")
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

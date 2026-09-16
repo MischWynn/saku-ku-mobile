@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -17,14 +18,22 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.sakuku.ui.components.AnimatedBottomNavBar
 import com.example.sakuku.ui.home.HomeScreen
+import com.example.sakuku.ui.screens.bayar.BayarScreen
 import com.example.sakuku.ui.screens.notifikasi.NotifikasiScreen
 import com.example.sakuku.ui.screens.pengajuan.PengajuanScreen
 import com.example.sakuku.ui.screens.plafond.PlafondScreen
+import com.example.sakuku.ui.screens.profil.BantuanScreen
+import com.example.sakuku.ui.screens.profil.EditDataDiriScreen
+import com.example.sakuku.ui.screens.profil.KeamananAkunScreen
+import com.example.sakuku.ui.screens.profil.KtpDataDiriScreen
 import com.example.sakuku.ui.screens.profil.ProfilScreen
+import com.example.sakuku.ui.screens.profil.RekeningBankScreen
 import com.example.sakuku.ui.screens.riwayat.RiwayatScreen
 import com.example.sakuku.ui.screens.riwayat.detail.StatusPinjamanDetailScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
 @Composable
 fun MainScreen(
@@ -38,6 +47,7 @@ fun MainScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "home"
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val hazeState = remember {HazeState()}
 
     Scaffold(
         bottomBar = {
@@ -57,7 +67,8 @@ fun MainScreen(
                             restoreState = true
                         }
                     }
-                }
+                },
+                hazeState = hazeState
             )
         }
     ) { innerPadding ->
@@ -69,7 +80,7 @@ fun MainScreen(
         NavHost(
             navController = navController,
             startDestination = "home",
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().hazeSource(state = hazeState)
         ) {
             composable("home") {
                 Box(Modifier.padding(top = innerPadding.calculateTopPadding())) {
@@ -133,11 +144,54 @@ fun MainScreen(
                     )
                 }
             }
+            composable("bayar") {
+                // Belum ada entry point tombol ke sini dari Home (HomeScreen.kt sengaja gak
+                // disentuh - lagi dikerjain user sendiri buat versi logged-in). Route ini
+                // tinggal dipanggil navController.navigate("bayar") begitu tombol "Bayar
+                // Cicilan"-nya siap ditaro di Home.
+                Box(Modifier.padding(innerPadding)) {
+                    BayarScreen(onBack = { navController.popBackStack() })
+                }
+            }
             composable("notification") {
                 Box(Modifier.padding(innerPadding)) { NotifikasiScreen() }
             }
             composable("profile") {
-                Box(Modifier.padding(innerPadding)) { ProfilScreen(onLoggedOut = onLoggedOut) }
+                Box(Modifier.padding(innerPadding)) {
+                    ProfilScreen(
+                        onNavigateToKtpDataDiri = { navController.navigate("ktp_data_diri") },
+                        onNavigateToEditDataDiri = { navController.navigate("edit_data_diri") },
+                        onNavigateToKeamanan = { navController.navigate("keamanan_akun") },
+                        onNavigateToRekeningBank = { navController.navigate("rekening_bank") },
+                        onNavigateToBantuan = { navController.navigate("bantuan") },
+                        onLoggedOut = onLoggedOut
+                    )
+                }
+            }
+            composable("ktp_data_diri") {
+                Box(Modifier.padding(innerPadding)) {
+                    KtpDataDiriScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("edit_data_diri") {
+                Box(Modifier.padding(innerPadding)) {
+                    EditDataDiriScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("keamanan_akun") {
+                Box(Modifier.padding(innerPadding)) {
+                    KeamananAkunScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("rekening_bank") {
+                Box(Modifier.padding(innerPadding)) {
+                    RekeningBankScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("bantuan") {
+                Box(Modifier.padding(innerPadding)) {
+                    BantuanScreen(onBack = { navController.popBackStack() })
+                }
             }
         }
     }

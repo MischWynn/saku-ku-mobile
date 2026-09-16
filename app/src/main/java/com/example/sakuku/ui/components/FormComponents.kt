@@ -1,11 +1,14 @@
 package com.example.sakuku.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -16,11 +19,13 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sakuku.ui.theme.BlobDark
@@ -54,12 +59,15 @@ fun SakukuOutlinedField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: @Composable (() -> Unit)? = null,
     leadingIcon: @Composable (() -> Unit)? = null,
+    singleLine: Boolean = true,
+    readOnly: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        singleLine = true,
+        singleLine = singleLine,
+        readOnly = readOnly,
         visualTransformation = visualTransformation,
         trailingIcon = trailingIcon,
         leadingIcon = leadingIcon,
@@ -75,6 +83,19 @@ fun SakukuOutlinedField(
             unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
         ),
         modifier = modifier.fillMaxWidth()
+    )
+}
+
+// Thumb bulat polos buat Slider Material3 - default bawaan M3 itu pill kecil vertikal ("|"),
+// dipakai bareng di Home (Simulasi) & Ajukan Pinjaman biar 2 slider itu konsisten bentuknya.
+@Composable
+fun RoundSliderThumb(size: Dp = 20.dp) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .shadow(2.dp, CircleShape)
+            .background(Color.White, CircleShape)
+            .border(1.dp, BlobDark.copy(alpha = 0.3f), CircleShape)
     )
 }
 

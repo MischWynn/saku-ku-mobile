@@ -17,6 +17,8 @@ data class ProfilUiState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val namaLengkap: String = "",
+    val nik: String = "",
+    val tanggalLahir: String = "",
     val email: String = "",
     val noHp: String = "",
     val alamat: String = "",
@@ -53,6 +55,8 @@ class ProfilViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             namaLengkap = profile.namaLengkap,
+                            nik = profile.nik ?: "",
+                            tanggalLahir = profile.tanggalLahir ?: "",
                             email = profile.email ?: "",
                             noHp = profile.noHp ?: "",
                             alamat = profile.alamat ?: "",
@@ -72,6 +76,7 @@ class ProfilViewModel @Inject constructor(
     }
 
     fun onNamaLengkapChange(v: String) = _uiState.update { it.copy(namaLengkap = v, successMessage = null) }
+    fun onTanggalLahirChange(v: String) = _uiState.update { it.copy(tanggalLahir = v, successMessage = null) }
     fun onEmailChange(v: String) = _uiState.update { it.copy(email = v, successMessage = null) }
     fun onNoHpChange(v: String) = _uiState.update { it.copy(noHp = v, successMessage = null) }
     fun onAlamatChange(v: String) = _uiState.update { it.copy(alamat = v, successMessage = null) }
@@ -86,6 +91,7 @@ class ProfilViewModel @Inject constructor(
             customerRepository.updateMe(
                 CustomerUpdateRequest(
                     namaLengkap = state.namaLengkap.ifBlank { null },
+                    tanggalLahir = state.tanggalLahir.ifBlank { null },
                     email = state.email.ifBlank { null },
                     noHp = state.noHp.ifBlank { null },
                     alamat = state.alamat.ifBlank { null },

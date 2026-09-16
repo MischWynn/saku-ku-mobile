@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.sakuku.ui.screens.pengajuan
 
 import androidx.compose.foundation.background
@@ -49,6 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sakuku.data.remote.dto.BungaTenorResponse
 import com.example.sakuku.data.remote.dto.TujuanPinjaman
 import com.example.sakuku.ui.components.GradientButton
+import com.example.sakuku.ui.components.RoundSliderThumb
 import com.example.sakuku.ui.components.SelectableChip
 import com.example.sakuku.ui.theme.BlobDark
 import com.example.sakuku.ui.theme.ButtonTurquoiseDeep
@@ -253,6 +256,38 @@ private fun Step1Content(
         }
     }
 
+    if (uiState.belowMinimum) {
+        // Sisa plafond di bawah minimum pengajuan (Rp500rb) - gak ada nominal valid yang bisa
+        // dipilih sama sekali. Dulu di titik ini slider tetep dipaksa render pakai range palsu
+        // (coerceAtLeast(500_001f)) yang bikin coerceIn di ViewModel crash - sekarang berhenti
+        // di sini dengan pesan jelas, gak lanjut render slider/tenor/tujuan yang percuma.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFFF28FA0).copy(alpha = 0.10f))
+                .border(1.dp, Color(0xFFF28FA0).copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "SISA PLAFOND TIDAK CUKUP",
+                color = Color(0xFFF28FA0),
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.5.sp
+            )
+            Text(
+                text = "Sisa plafondmu di bawah minimum pengajuan (Rp500.000). Selesaikan atau tunggu pengajuan yang masih berjalan sebelum mengajukan pinjaman baru.",
+                color = Color.White.copy(alpha = 0.8f),
+                fontFamily = PlusJakartaSans,
+                fontSize = 12.5.sp,
+                lineHeight = 17.sp
+            )
+        }
+        return
+    }
+
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Jumlah Pinjaman", color = Color.White.copy(alpha = 0.75f), fontFamily = PlusJakartaSans, fontSize = 12.sp)
@@ -265,12 +300,15 @@ private fun Step1Content(
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp
         )
-        val maxNominal = uiState.sisaPlafond ?: 0.0
+        // belowMinimum udah di-return di atas, jadi sisaPlafond di titik ini selalu >= 500rb -
+        // valueRange gak perlu lagi "dipalsuin" pakai coerceAtLeast kayak sebelumnya.
+        val maxNominal = uiState.sisaPlafond ?: 500_000.0
         Slider(
             value = uiState.nominal.toFloat(),
             onValueChange = { onNominalChange(it.toDouble()) },
-            valueRange = 500_000f..maxNominal.toFloat().coerceAtLeast(500_001f),
+            valueRange = 500_000f..maxNominal.toFloat(),
             enabled = uiState.sisaPlafond != null,
+            thumb = { RoundSliderThumb() },
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
                 activeTrackColor = BlobDark,

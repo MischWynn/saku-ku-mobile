@@ -1,5 +1,11 @@
 package com.example.sakuku.util
 
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.util.Locale
+
 // Formula flat-rate resmi (sama persis dipakai web dashboard & drawer review staff, lihat
 // CLAUDE.md project - JANGAN diganti ke reducing-balance tanpa nyamain juga sisi backend/FE lain):
 //   total_bunga = nominal * (interestRate / 100)
@@ -27,5 +33,26 @@ object LoanCalculator {
         val rounded = Math.round(amount)
         val grouped = rounded.toString().reversed().chunked(3).joinToString(".").reversed()
         return "Rp$grouped"
+    }
+
+    private val ID_LOCALE = Locale.Builder().setLanguage("id").setRegion("ID").build()
+    private val DUE_DATE_FORMATTER = DateTimeFormatter.ofPattern("d MMM yyyy", ID_LOCALE)
+
+    // tanggalPencairan + n bulan sampai lewatin hari ini - itu jatuh tempo cicilan "bulan ini".
+    // Dipakai bareng oleh BayarViewModel (list lengkap) & HomeViewModel (preview 1 kartu) -
+    // satu sumber kebenaran, gak diduplikasi. null kalau tanggalPencairan belum keisi backend
+    // (data lama sebelum field ini ada, atau backend belum sempat restart).
+    fun nextDueDateLabel(tanggalPencairanIso: String): String? {
+        return try {
+            val disbursedDate = LocalDateTime.parse(tanggalPencairanIso).toLocalDate()
+            var due = disbursedDate.plusMonths(1)
+            val today = LocalDate.now()
+            while (due.isBefore(today)) {
+                due = due.plusMonths(1)
+            }
+            due.format(DUE_DATE_FORMATTER)
+        } catch (e: DateTimeParseException) {
+            null
+        }
     }
 }

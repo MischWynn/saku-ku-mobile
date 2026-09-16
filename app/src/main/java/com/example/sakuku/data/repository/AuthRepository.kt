@@ -71,6 +71,15 @@ class AuthRepository @Inject constructor(
 
     // Dipakai juga buat "kirim ulang" di alur reset password - backend gak punya endpoint
     // resend terpisah buat ini, forgot-password sendiri yang generate+kirim kode baru tiap dipanggil.
+    suspend fun verifyResetOtp(email: String, code: String): Result<String> {
+        return try {
+            val response = apiService.verifyResetOtp(VerifyOtpRequest(email, code))
+            Result.success(response.message)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun forgotPassword(email: String): Result<String> {
         return try {
             val response = apiService.forgotPassword(ForgotPasswordRequest(email))

@@ -82,7 +82,7 @@ private fun NotifikasiScreenContent(
                     text = "Notifikasi",
                     color = Color.White,
                     fontFamily = PlusJakartaSans,
-                    fontStyle = FontStyle.Italic,
+//                    fontStyle = FontStyle.Italic,
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp,
                     modifier = Modifier.weight(1f)

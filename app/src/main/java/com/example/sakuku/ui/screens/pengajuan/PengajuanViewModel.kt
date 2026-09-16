@@ -38,6 +38,12 @@ data class PengajuanUiState(
     val canProceedToStep2: Boolean
         get() = !isLoading && sisaPlafond != null && selectedTenorId != null && nominal >= MIN_NOMINAL
 
+    // Sisa plafond customer bisa di bawah minimum pengajuan (Rp500rb) - misal udah kepakai
+    // hampir abis sama pengajuan lain yang masih ketahan. UI pakai ini buat nampilin pesan
+    // jelas + nyembunyiin slider, bukan biarin coerceIn di bawah nge-crash (lihat gotcha).
+    val belowMinimum: Boolean
+        get() = sisaPlafond != null && sisaPlafond < MIN_NOMINAL
+
     // Selisih plafond total vs sisa yang bisa dipakai sekarang - kalau > 0 berarti ada
     // pengajuan lain (masih direview atau udah cair) yang lagi "ketahan" makan jatah plafond.
     val heldAmount: Double?
@@ -91,7 +97,17 @@ class PengajuanViewModel @Inject constructor(
                     pendapatanBulanan = profile?.pendapatanBulanan,
                     tenors = tenors,
                     selectedTenorId = tenors.firstOrNull()?.id,
-                    nominal = if (sisaPlafond != null) current.nominal.coerceIn(MIN_NOMINAL, sisaPlafond) else current.nominal,
+                    // BUG: coerceIn(min, max) LEMPAR EXCEPTION (bukan clamp) kalau max < min -
+                    // ini penyebab asli crash "auto-shutdown" yang dilaporin user pas buka tab
+                    // Ajukan. Kejadian kalau sisaPlafond customer < Rp500rb (MIN_NOMINAL) -
+                    // misal sisa 200rb doang. Fix: kalau sisaPlafond di bawah minimum, gak ada
+                    // "nominal valid" yang bisa dipilih sama sekali - langsung set ke sisaPlafond
+                    // apa adanya (UI nanti nyembunyiin slider + nampilin pesan lewat belowMinimum).
+                    nominal = when {
+                        sisaPlafond == null -> current.nominal
+                        sisaPlafond < MIN_NOMINAL -> sisaPlafond
+                        else -> current.nominal.coerceIn(MIN_NOMINAL, sisaPlafond)
+                    },
                     errorMessage = when {
                         profileResult.isFailure -> "Gagal memuat plafond kamu, coba lagi"
                         tenorResult.isFailure -> "Gagal memuat pilihan tenor, coba lagi"
@@ -106,7 +122,10 @@ class PengajuanViewModel @Inject constructor(
 
     fun onNominalChange(value: Double) {
         val max = _uiState.value.sisaPlafond ?: return
-        _uiState.update { it.copy(nominal = value.coerceIn(MIN_NOMINAL, max)) }
+        // Sama kayak fix di loadData() - kalau sisa plafond di bawah MIN_NOMINAL, slider harusnya
+        // udah disabled di UI, tapi jaga-jaga tetep gak boleh coerceIn(500rb, <500rb) yang crash.
+        val min = if (max < MIN_NOMINAL) 0.0 else MIN_NOMINAL
+        _uiState.update { it.copy(nominal = value.coerceIn(min, max)) }
     }
 
     fun onTenorSelect(tenorId: String) {

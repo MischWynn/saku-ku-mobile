@@ -15,19 +15,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sakuku.ui.theme.*
 
 @Composable
 fun SplashScreen(
-    onNavigate: () -> Unit,
-    viewModel: SplashViewModel = viewModel()
+    onNavigate: (loggedIn: Boolean) -> Unit,
+    viewModel: SplashViewModel = hiltViewModel()
 ) {
     val showSubtitle by viewModel.showSubtitle.collectAsState()
     val navigateToNext by viewModel.navigateToNext.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
-    LaunchedEffect(navigateToNext) {
-        if (navigateToNext) onNavigate()
+    LaunchedEffect(navigateToNext, isLoggedIn) {
+        if (navigateToNext) {
+            // isLoggedIn null berarti pengecekan token belum kelar - jangan navigate dulu,
+            // walau delay animasi (navigateToNext) udah lewat, biar gak sempet ke-flash ke
+            // Onboarding dulu baru lompat ke Main.
+            isLoggedIn?.let { onNavigate(it) }
+        }
     }
 
     Box(

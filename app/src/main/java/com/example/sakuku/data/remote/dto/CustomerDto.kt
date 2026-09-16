@@ -42,3 +42,11 @@ data class CustomerUpdateRequest(
     val pendapatanBulanan: Double? = null,
     val utangBerjalan: Double? = null
 )
+
+// Field persis CustomerChangePasswordRequest.java backend (16 Sept) - beda dari forgot/reset
+// password (OTP-based), ini ganti password saat udah login, butuh password lama buat verifikasi.
+@Serializable
+data class CustomerChangePasswordRequest(
+    val oldPassword: String,
+    val newPassword: String
+)

@@ -27,20 +27,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sakuku.ui.theme.PlusJakartaSans // Ganti dengan path Type.kt milikmu[cite: 2]
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.blur.hazeBlur
+import dev.chrisbanes.haze.blur.HazeBlurStyle
 
 // GlassBg diturunin dari 0.75 (nyaris solid, blob di belakangnya nyaris gak nembus) ke 0.42 -
 // beneran blur backdrop (yang niru CSS backdrop-filter) gak ada built-in di Compose polos tanpa
 // nambah library (mis. Haze), jadi opacity yang lebih rendah + sheen gradient di bawah ini
 // pendekatan yang paling murah/aman buat kesan glass tanpa dependency baru.
-val GlassBg = Color(0xFF151716).copy(alpha = 0.60f)
+
+//val GlassBg = Color(0xFF151716).copy(alpha = 0.60f)
+
 val GlassBorder = Color.White.copy(alpha = 0.16f)
+
 // Highlight diagonal tipis (kiri-atas ke kanan-bawah) - trik umum bikin permukaan flat kerasa
 // kayak kaca, tanpa perlu blur beneran.
-val GlassSheen = Brush.linearGradient(
-    colors = listOf(Color.White.copy(alpha = 0.10f), Color.White.copy(alpha = 0f)),
-    start = Offset(0f, 0f),
-    end = Offset(600f, 300f)
-)
+
+//val GlassSheen = Brush.linearGradient(
+//    colors = listOf(Color.White.copy(alpha = 0.10f), Color.White.copy(alpha = 0f)),
+//    start = Offset(0f, 0f),
+//    end = Offset(600f, 300f)
+//)
 val ItemUnselectedBg = Color.White.copy(alpha = 0.1f)
 val ItemSelectedBg = Color(0xFF20D09B).copy(alpha = 0.9f)
 
@@ -61,7 +69,8 @@ val navItems = listOf(
 @Composable
 fun AnimatedBottomNavBar(
     currentRoute: String,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    hazeState: HazeState
 ) {
     Row(
         modifier = Modifier
@@ -72,8 +81,18 @@ fun AnimatedBottomNavBar(
             .clip(CircleShape)
             // Efek Glassmorphism Induk - background transparan dulu, baru sheen di atasnya,
             // baru border (urutan modifier nentuin layering visual).
-            .background(GlassBg)
-            .background(GlassSheen)
+//            .background(GlassBg)
+//            .background(GlassSheen)
+            .hazeBlur(
+                input = HazeInput.Sources(hazeState),
+                style = HazeBlurStyle {
+                    blurRadius(16.dp)
+                    backgroundColor(Color.White.copy(alpha = 0.05f))
+                }
+
+//                     tint = HazeTint(Color.White.copy(alpha = 0.05f))
+
+            )
             .border(width = 1.dp, color = GlassBorder, shape = CircleShape)
             .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,

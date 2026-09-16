@@ -1,6 +1,7 @@
 package com.example.sakuku.data.repository
 
 import com.example.sakuku.data.remote.ApiService
+import com.example.sakuku.data.remote.dto.CustomerChangePasswordRequest
 import com.example.sakuku.data.remote.dto.CustomerMeResponse
 import com.example.sakuku.data.remote.dto.CustomerUpdateRequest
 import javax.inject.Inject
@@ -22,6 +23,13 @@ class CustomerRepository @Inject constructor(
         val response = apiService.updateCustomerMe(request)
         val data = response.data
         if (data != null) Result.success(data) else Result.failure(Exception(response.message))
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun changePassword(oldPassword: String, newPassword: String): Result<String> = try {
+        val response = apiService.changeCustomerPassword(CustomerChangePasswordRequest(oldPassword, newPassword))
+        Result.success(response.message)
     } catch (e: Exception) {
         Result.failure(e)
     }

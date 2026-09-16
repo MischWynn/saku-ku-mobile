@@ -23,8 +23,14 @@ fun AppNavigation() {
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
-            SplashScreen(onNavigate = {
-                navController.navigate("onboarding") {
+            SplashScreen(onNavigate = { loggedIn ->
+                // Udah login (token masih ada di DataStore, gak dicek expiry-nya di sini) ->
+                // langsung ke Home logged-in, gak perlu ngelewatin Onboarding lagi tiap buka
+                // app. Belum login -> alur lama (Onboarding dulu). Restriction "belum login
+                // cuma bisa akses Home" tetap dipegang MainScreen.kt punya bottom-nav guard,
+                // gak berubah - splash cuma nentuin titik masuk awal.
+                val destination = if (loggedIn) "main" else "onboarding"
+                navController.navigate(destination) {
                     popUpTo("splash") { inclusive = true }
                 }
             })
@@ -147,8 +153,13 @@ fun AppNavigation() {
             val userName = backStackEntry.arguments?.getString("userName") ?: ""
             WelcomeScreen(
                 userName = userName,
+                // Register+verify-otp gak pernah nerbitin token (verify-otp balikin data profil
+                // doang, bukan JWT) - lempar ke "main" di sini bisa keliatan seolah udah login
+                // kalau kebetulan ada token basi lama nyangkut di DataStore. Ke Login lebih
+                // jujur: user baru bikin akun, langkah berikutnya emang masuk pakai kredensial
+                // yang baru dibuat.
                 onContinue = {
-                    navController.navigate("main") {
+                    navController.navigate("login") {
                         popUpTo("splash") { inclusive = true }
                     }
                 }

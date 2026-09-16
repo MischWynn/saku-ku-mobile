@@ -1,10 +1,13 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.sakuku.ui.home
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
@@ -24,10 +29,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.rounded.AttachMoney
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Calculate
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FactCheck
 import androidx.compose.material.icons.rounded.Payments
+import androidx.compose.material.icons.rounded.Percent
 import androidx.compose.material.icons.rounded.PriceChange
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,29 +54,43 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.sakuku.R
 import com.example.sakuku.data.remote.dto.BungaTenorResponse
 import com.example.sakuku.data.remote.dto.PlafondResponse
 import com.example.sakuku.ui.components.AuthButtonGradient
 import com.example.sakuku.ui.components.EditableNominalField
 import com.example.sakuku.ui.components.GradientButton
+import com.example.sakuku.ui.components.RoundSliderThumb
 import com.example.sakuku.ui.components.SelectableChip
 import com.example.sakuku.ui.theme.BlobDark
 import com.example.sakuku.ui.theme.BlobLight
+import com.example.sakuku.ui.theme.ButtonTurquoiseDeep
+import com.example.sakuku.ui.theme.ButtonTurquoiseLight
 import com.example.sakuku.ui.theme.PlusJakartaSans
 import com.example.sakuku.ui.theme.sakukuBlobBackground
 import com.example.sakuku.ui.theme.SakukuTheme
 import com.example.sakuku.util.LoanCalculator
 import kotlinx.coroutines.launch
+import androidx.annotation.DrawableRes
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.IntrinsicSize
 
 private val GlassFill = Color.White.copy(alpha = 0.05f)
 private val GlassBorder = Color.White.copy(alpha = 0.12f)
@@ -123,13 +152,19 @@ private fun HomeScreenContent(
         ) {
             TopBar(onNavigateToLogin = onNavigateToLogin)
 
-            PlafondPreviewSection(tiers = uiState.tiers, isLoading = uiState.isLoading)
+            HeroBannerSection(onNavigateToLogin = onNavigateToLogin)
 
             QuickAccessSection(
                 onDaftarMasuk = onNavigateToLogin,
                 onSimulasi = { coroutineScope.launch { simulasiAnchor.bringIntoView() } },
                 onCekPlafond = onNavigateToPlafond
             )
+
+            BenefitsSection()
+
+            ApplicationFlowSection(maxNominal = uiState.maxNominal)
+
+            PlafondPreviewSection(tiers = uiState.tiers, isLoading = uiState.isLoading)
 
             SimulasiSection(
                 modifier = Modifier.bringIntoViewRequester(simulasiAnchor),
@@ -139,6 +174,8 @@ private fun HomeScreenContent(
                 onRetry = onRetry,
                 onNavigateToLogin = onNavigateToLogin
             )
+
+            TrustFooterSection()
         }
     }
 }
@@ -182,6 +219,248 @@ private fun TopBar(onNavigateToLogin: () -> Unit) {
 //                fontSize = 12.5.sp
 //            )
 //        }
+    }
+}
+
+// Konten teks/icon 2 slide promo - TIDAK pakai ilustrasi karakter asli dari Figma (belum ada
+// aset PNG-nya di res/drawable/, cuma placeholder icon Material dulu). Begitu asetnya
+// diekspor dari Figma, tinggal ganti Icon(...) di HeroBannerSection jadi Image(painterResource)
+// kayak pola di WelcomeScreen/OnboardingScreen, teks/layout gak perlu berubah.
+private data class HeroSlide(@DrawableRes val imageRes: Int, val title: String, val subtitle: String, val showButton: Boolean)
+
+private val heroSlides = listOf(
+    HeroSlide(R.drawable.money, "Pinjaman tunai\ndana segar", "Langsung cair ke rekeningmu", showButton = true),
+    HeroSlide(R.drawable.stack_cash, "Saat dompet kritis\nmelanda", "Saku-ku selalu ada", showButton = false)
+)
+
+@Composable
+private fun HeroBannerSection(onNavigateToLogin: () -> Unit) {
+    val pagerState = rememberPagerState(pageCount = { heroSlides.size })
+
+    LaunchedEffect(key1 = pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress){
+            while (true) {
+                delay(4000)
+                val nextPage = (pagerState.currentPage + 1) % heroSlides.size
+                pagerState.animateScrollToPage(nextPage)
+            }
+        }
+    }
+
+    Column {
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
+            val slide = heroSlides[page]
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF0B3B2E), Color(0xFF0F2B22))))
+                    .padding(start = 20.dp, top = 20.dp, bottom = 20.dp, end = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1.2f)) {
+                    Text(
+                        text = slide.title,
+                        color = Color.White,
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        lineHeight = 21.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = slide.subtitle,
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 11.5.sp
+                    )
+                    if(slide.showButton) {
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        ButtonTurquoiseLight,
+                                        ButtonTurquoiseDeep
+                                    )
+                                )
+                            )
+                            .clickable(onClick = onNavigateToLogin)
+                            .padding(horizontal = 18.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "Gabung sekarang",
+                            color = Color.White,
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(130.dp),
+//                        .size(64.dp)
+//                        .clip(RoundedCornerShape(18.dp))
+//                        .background(Color.White.copy(alpha = 0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+//                    Icon(imageVector = slide.icon, contentDescription = null, tint = BlobLight, modifier = Modifier.size(30.dp))
+                    Image(
+                        painter = painterResource(id = slide.imageRes),
+                        contentDescription = "Illustrasi Banner",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+            heroSlides.indices.forEach { index ->
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 3.dp)
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (index == pagerState.currentPage) BlobDark else Color.White.copy(
+                                alpha = 0.25f
+                            )
+                        )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BenefitsSection() {
+    Column {
+        SectionHeader(title = "Keuntungan Pakai Saku-ku")
+        Spacer(modifier = Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(
+            IntrinsicSize.Max)) {
+            InfoCard("Proses Cepat", "Pencairan cepat", Icons.Rounded.Bolt, Modifier.weight(1f).fillMaxSize())
+            InfoCard("Bunga Rendah", "3% per tahun", Icons.Rounded.Percent, Modifier.weight(1f).fillMaxSize())
+            InfoCard("Transparan", "status pengajuan langsung", Icons.Rounded.Search, Modifier.weight(1f).fillMaxSize())
+        }
+    }
+}
+
+@Composable
+private fun ApplicationFlowSection(maxNominal: Double) {
+    Column {
+        SectionHeader(title = "Alur Pengajuan")
+        Spacer(modifier = Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())) {
+            val cardModifier = Modifier.width(140.dp)
+            InfoCard("Isi Data Diri", "Lengkapi detail data diri", Icons.Rounded.Edit, cardModifier, stepNumber = 1)
+            InfoCard("Dapatkan Limit", "Hingga ${LoanCalculator.formatRupiah(maxNominal)}", Icons.Rounded.Speed, cardModifier, stepNumber = 2)
+            InfoCard("Ajukan", "Ajukan pinjaman kamu", Icons.AutoMirrored.Rounded.Send, cardModifier, stepNumber = 3)
+            InfoCard("Dana Cair", "Dana akan segera cair", Icons.Rounded.AttachMoney, cardModifier, stepNumber = 4)
+        }
+    }
+}
+
+// Dipakai bareng buat kartu "Keuntungan" & "Alur Pengajuan" - visualnya identik (icon+judul+
+// subjudul), cuma beda konten, gak perlu 2 composable kartu terpisah.
+@Composable
+private fun InfoCard(title: String, subtitle: String, icon: ImageVector, modifier: Modifier = Modifier, stepNumber: Int? = null) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(GlassFill)
+            .border(1.dp, GlassBorder, RoundedCornerShape(16.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        )
+        {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(Color.White.copy(alpha = 0.08f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = BlobDark,
+                    modifier = Modifier.size(15.dp)
+                )
+            }
+
+            if (stepNumber != null) {
+                Text(
+                    text = "#$stepNumber",
+                    color = BlobDark,
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.5.sp,
+                lineHeight = 14.sp
+            )
+            Text(
+                text = subtitle,
+                color = Color.White.copy(alpha = 0.5f),
+                fontFamily = PlusJakartaSans,
+                fontSize = 9.5.sp,
+                lineHeight = 12.sp
+            )
+        }
+
+    }
+}
+
+// Sengaja BUKAN logo BCA/OJK asli dari mockup - project ini simulasi bootcamp, bukan produk
+// finansial berlisensi beneran (lihat CLAUDE.md), jadi make logo bank/regulator asli buat
+// klaim afiliasi/pengawasan berisiko menyesatkan (juga soal trademark). Placeholder icon
+// generik dulu - kalau nanti beneran ada kerja sama/butuh tampil "meyakinkan" buat demo,
+// diskusiin dulu sebelum swap ke logo asli.
+@Composable
+private fun TrustFooterSection() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Text(
+            text = "Mengacu pada regulasi perbankan & OJK",
+            color = Color.White.copy(alpha = 0.35f),
+            fontFamily = PlusJakartaSans,
+            fontSize = 10.sp
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.AccountBalance, contentDescription = "Mitra perbankan", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+            Icon(Icons.Rounded.Shield, contentDescription = "Regulasi OJK", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+        }
     }
 }
 
@@ -382,17 +661,23 @@ private fun SimulasiSection(
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
+                // Customer login yang sisaPlafond-nya di bawah Rp500rb (batas minimum pinjaman)
+                // bikin range 500rb..maxNominal jadi "kosong" (max < min) - Slider Compose
+                // nge-throw IllegalArgumentException kalau itu kejadian. Turunin batas bawah ke
+                // 0 buat kasus itu, sama pola kayak HomeViewModel.onNominalChange().
+                val effectiveMinNominal = if (uiState.maxNominal < 500_000.0) 0.0 else 500_000.0
                 EditableNominalField(
                     nominal = uiState.nominal,
                     onNominalChange = onNominalChange,
-                    minNominal = 500_000.0,
+                    minNominal = effectiveMinNominal,
                     maxNominal = uiState.maxNominal
                 )
                 Slider(
                     value = uiState.nominal.toFloat(),
                     onValueChange = { onNominalChange(it.toDouble()) },
-                    valueRange = 500_000f..uiState.maxNominal.toFloat(),
+                    valueRange = effectiveMinNominal.toFloat()..uiState.maxNominal.toFloat(),
                     steps = 0,
+                    thumb = { RoundSliderThumb() },
                     colors = SliderDefaults.colors(
                         thumbColor = Color.White,
                         activeTrackColor = BlobDark,
