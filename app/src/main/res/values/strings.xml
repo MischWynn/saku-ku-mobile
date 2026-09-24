@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Sakuku</string>
+    <string name="google_web_client_id" translatable="false">920936793608-1rklm29bhndf9jnjpdt02q1me4640i2n.apps.googleusercontent.com</string>
+    <string name="notification_channel_general">Umum</string>
+    <string name="notification_channel_transaction">Transaksi</string>
+    <string name="notification_channel_promo">Promo</string>
+    <string name="notification_manual_action">Kirim Notifikasi Uji</string>
+    <string name="notification_manual_title">Pengajuan disetujui</string>
+    <string name="notification_manual_body">Ketuk untuk melihat detail transaksi TRX-001.</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.otp
 
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sakuku.ui.components.GradientButton
+import com.example.sakuku.ui.components.OtpCodeInput
 import com.example.sakuku.ui.theme.BlobDark
 import com.example.sakuku.ui.theme.BlobLight
 import com.example.sakuku.ui.theme.PlusJakartaSans
@@ -60,14 +62,13 @@ import com.example.sakuku.ui.theme.sakukuBlobBackground
 @Composable
 fun OtpScreen(
     email: String,
-    mode: OtpMode,
     onVerified: (code: String) -> Unit,
     onBack: () -> Unit = {},
     viewModel: OtpViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(email, mode) { viewModel.init(email, mode) }
+    LaunchedEffect(email) { viewModel.init(email) }
     LaunchedEffect(uiState.verified) { if (uiState.verified) onVerified(uiState.code) }
 
     OtpScreenContent(
@@ -93,7 +94,7 @@ private fun OtpScreenContent(
             .sakukuBlobBackground()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = ScreenPadding.Horizontal)
             .navigationBarsPadding()
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -129,7 +130,6 @@ private fun OtpScreenContent(
             text = "Verifikasi",
             color = Color.White,
             fontFamily = PlusJakartaSans,
-            fontStyle = FontStyle.Italic,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
             textAlign = TextAlign.Center,
@@ -204,61 +204,6 @@ private fun OtpScreenContent(
 
         Spacer(modifier = Modifier.height(24.dp))
     }
-}
-
-@Composable
-private fun OtpCodeInput(code: String, onCodeChange: (String) -> Unit, length: Int = 6) {
-    val focusRequester = remember { FocusRequester() }
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        BasicTextField(
-            value = code,
-            onValueChange = onCodeChange,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .focusRequester(focusRequester)
-                .alpha(0f)
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { focusRequester.requestFocus() }
-        ) {
-            repeat(length) { index ->
-                val char = code.getOrNull(index)?.toString() ?: ""
-                val isCurrent = index == code.length
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(0.85f)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .border(
-                            width = 1.dp,
-                            color = if (isCurrent) BlobDark else Color.White.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(14.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = char,
-                        color = Color.White,
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 }
 
 @Preview(showBackground = true)

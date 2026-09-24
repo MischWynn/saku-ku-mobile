@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.newpassword
 
+import com.example.sakuku.util.Validators
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sakuku.data.repository.AuthRepository
@@ -43,7 +44,7 @@ class NewPasswordViewModel @Inject constructor(
     fun submit() {
         val s = _uiState.value
         val error = when {
-            s.password.length < 8 -> "Password minimal 8 karakter"
+            Validators.passwordError(s.password) != null -> Validators.passwordError(s.password)
             s.password != s.confirmPassword -> "Konfirmasi password tidak sama"
             else -> null
         }

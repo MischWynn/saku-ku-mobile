@@ -55,8 +55,12 @@ class AuthInterceptor @Inject constructor(
         // DataStore. Tanpa ini, MainViewModel.isLoggedIn (cuma ngecek token != null, gak
         // ngecek validitas/umur) bakal tetep true selamanya walau token-nya udah gak berguna,
         // bikin user "keliatan login" tapi tiap request ke endpoint customer/* selalu 401.
+        // notifySessionExpired() sekalian ngasih tau AppNavigation buat maksa pindah ke Login -
+        // tanpa ini, user cuma nyangkut di halaman yang lagi dibuka (token-nya ilang diam-diam
+        // di background, gak ada yang nge-redirect dia).
         if (response.code == 401 && token != null) {
             runBlocking { tokenDataStore.clearToken() }
+            tokenDataStore.notifySessionExpired()
         }
 
         return response

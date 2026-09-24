@@ -1,4 +1,4 @@
-package com.example.kotlintest.core.notification
+package com.example.sakuku.core.notification
 
 data class AppNotification(
     val title: String,

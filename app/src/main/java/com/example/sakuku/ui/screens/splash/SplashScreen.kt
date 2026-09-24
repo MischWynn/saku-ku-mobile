@@ -21,18 +21,21 @@ import com.example.sakuku.ui.theme.*
 @Composable
 fun SplashScreen(
     onNavigate: (loggedIn: Boolean) -> Unit,
+    onRootedDetected: () -> Unit,
     viewModel: SplashViewModel = hiltViewModel()
 ) {
     val showSubtitle by viewModel.showSubtitle.collectAsState()
     val navigateToNext by viewModel.navigateToNext.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val isRooted by viewModel.isRooted.collectAsState()
 
-    LaunchedEffect(navigateToNext, isLoggedIn) {
+    LaunchedEffect(navigateToNext, isLoggedIn, isRooted) {
         if (navigateToNext) {
-            // isLoggedIn null berarti pengecekan token belum kelar - jangan navigate dulu,
-            // walau delay animasi (navigateToNext) udah lewat, biar gak sempet ke-flash ke
-            // Onboarding dulu baru lompat ke Main.
-            isLoggedIn?.let { onNavigate(it) }
+            if (isRooted) {
+                onRootedDetected()
+            } else {
+                isLoggedIn?.let { onNavigate(it) }
+            }
         }
     }
 
@@ -40,12 +43,10 @@ fun SplashScreen(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // Lapisan Background & Blob
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
 
-            // 1. Background Vertikal Gradient
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(BgTop, BgBottom),
@@ -54,7 +55,6 @@ fun SplashScreen(
                 )
             )
 
-            // 2. Blob Kiri Bawah / Tengah (Mensimulasikan tekstur kasar)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -84,7 +84,6 @@ fun SplashScreen(
             )
         }
 
-        // Lapisan Tipografi
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

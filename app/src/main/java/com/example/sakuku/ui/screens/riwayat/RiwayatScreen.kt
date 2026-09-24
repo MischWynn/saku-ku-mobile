@@ -1,5 +1,8 @@
 package com.example.sakuku.ui.screens.riwayat
 
+import com.example.sakuku.ui.theme.sakukuBlobBackgroundTop
+import com.example.sakuku.ui.theme.screenTitleInset
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -32,8 +36,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.sakuku.data.remote.dto.PengajuanMeResponse
 import com.example.sakuku.ui.components.GradientButton
+import com.example.sakuku.ui.components.PengajuanButtonGradient
 import com.example.sakuku.ui.theme.BlobDark
 import com.example.sakuku.ui.theme.PlusJakartaSans
 import com.example.sakuku.ui.theme.sakukuBlobBackground
@@ -49,7 +55,12 @@ fun RiwayatScreen(
     onItemClick: (id: String) -> Unit = {},
     viewModel: RiwayatViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(
+        Unit
+    ) {
+        viewModel.load()
+    }
     RiwayatScreenContent(
         uiState = uiState,
         onRetry = viewModel::load,
@@ -68,20 +79,20 @@ private fun RiwayatScreenContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .sakukuBlobBackground()
+            .sakukuBlobBackgroundTop()
             .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = ScreenPadding.Horizontal)
                 .padding(top = 24.dp)
         ) {
             Text(
                 text = "Riwayat Pengajuan",
+                modifier = Modifier.screenTitleInset(),
                 color = Color.White,
                 fontFamily = PlusJakartaSans,
-                fontStyle = FontStyle.Italic,
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp
             )
@@ -91,6 +102,45 @@ private fun RiwayatScreenContent(
                 uiState.isLoading -> {
                     Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = BlobDark)
+                    }
+                }
+                // items.isNotEmpty() dicek DULUAN, sebelum errorMessage - offline-first: kalau
+                // sinkronisasi background gagal (mis. gak ada internet) tapi cache Room udah ada
+                // isinya dari sesi sebelumnya, list itu tetap harus keliatan, bukan ketutup kartu
+                // error kayak sebelumnya (dulu errorMessage != null selalu menang duluan).
+                uiState.items.isNotEmpty() -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (uiState.errorMessage != null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(GlassFill)
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Gagal sinkron, nampilin data tersimpan",
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 11.5.sp
+                                )
+                                Text(
+                                    "Coba lagi",
+                                    color = BlobDark,
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp,
+                                    modifier = Modifier.clickable(onClick = onRetry)
+                                )
+                            }
+                        }
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(uiState.items) { item ->
+                                RiwayatCard(item, onClick = { onItemClick(item.id) })
+                            }
+                        }
                     }
                 }
                 uiState.errorMessage != null -> {
@@ -113,7 +163,7 @@ private fun RiwayatScreenContent(
                         )
                     }
                 }
-                uiState.items.isEmpty() -> {
+                else -> {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -125,14 +175,7 @@ private fun RiwayatScreenContent(
                             fontSize = 14.sp
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        GradientButton(text = "Ajukan Pinjaman", onClick = onNavigateToApply)
-                    }
-                }
-                else -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(uiState.items) { item ->
-                            RiwayatCard(item, onClick = { onItemClick(item.id) })
-                        }
+                        GradientButton(text = "Ajukan Pinjaman", onClick = onNavigateToApply, gradient = PengajuanButtonGradient)
                     }
                 }
             }
@@ -154,13 +197,21 @@ private fun RiwayatCard(item: PengajuanMeResponse, onClick: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = LoanCalculator.formatRupiah(item.nominalPengajuan),
-                color = Color.White,
-                fontFamily = PlusJakartaSans,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
+            Column {
+                Text(
+                    text = LoanCalculator.formatRupiah(item.nominalPengajuan),
+                    color = Color.White,
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = LoanCalculator.formatPengajuanRef(item.id),
+                    color = Color.White.copy(alpha = 0.35f),
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 10.sp
+                )
+            }
             StatusBadge(item.status)
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

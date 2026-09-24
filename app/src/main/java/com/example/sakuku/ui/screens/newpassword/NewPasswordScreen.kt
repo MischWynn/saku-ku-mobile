@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.newpassword
 
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -92,7 +93,7 @@ private fun NewPasswordScreenContent(
             .sakukuBlobBackground()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = ScreenPadding.Horizontal)
             .navigationBarsPadding()
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -122,7 +123,6 @@ private fun NewPasswordScreenContent(
             text = "Masukkan Password Baru",
             color = Color.White,
             fontFamily = PlusJakartaSans,
-            fontStyle = FontStyle.Italic,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp
         )

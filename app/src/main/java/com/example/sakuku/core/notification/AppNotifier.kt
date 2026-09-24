@@ -1,4 +1,5 @@
-package com.example.kotlintest.core.notification
+package com.example.sakuku.core.notification
+
 
 interface AppNotifier {
      fun show(notification: AppNotification): Int

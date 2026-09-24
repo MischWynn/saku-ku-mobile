@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 // properties dari java.util
@@ -113,10 +114,20 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.datastore.preferences)
 
-    // 2.0.0 belum pernah beneran dirilis stabil di Maven (cuma ada -alpha/-beta/-rc) - itu
-    // yang bikin build gagal resolve dependency ("Could not find dev.chrisbanes.haze:haze:2.0.0").
-    // Diganti ke 1.7.3, rilis stabil terakhir sebelum garis 2.0 - biar gak nambah 1 lagi ke daftar
-    // version-clash yang udah beberapa kali kejadian di project ini (Hilt/AGP/Compose BOM).
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.auth)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    // Google Sign-In - modern Credential Manager flow, not the deprecated GoogleSignInClient API.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+
     implementation("dev.chrisbanes.haze:haze:2.0.0-beta03")
     implementation("dev.chrisbanes.haze:haze-blur:2.0.0-beta03")
 

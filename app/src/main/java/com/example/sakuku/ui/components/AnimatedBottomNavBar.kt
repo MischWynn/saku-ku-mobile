@@ -62,7 +62,7 @@ val navItems = listOf(
     NavItem("Beranda", Icons.Rounded.Cottage, "home"),
     NavItem("Riwayat", Icons.Rounded.ManageSearch, "history"),
     NavItem("Ajukan", Icons.Rounded.Payments, "apply"),
-    NavItem("Notif", Icons.Rounded.FactCheck, "notification"),
+    // Notifikasi pindah jadi ikon lonceng di pojok kanan atas Beranda (route "notification" tetap ada).
     NavItem("Profil", Icons.Rounded.Person, "profile")
 )
 

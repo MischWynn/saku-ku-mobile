@@ -2,6 +2,14 @@
 
 package com.example.sakuku.ui.screens.register
 
+import com.example.sakuku.ui.theme.ScreenPadding
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +31,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
@@ -38,6 +49,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -47,7 +59,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -55,47 +72,86 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.ui.res.stringResource
+import androidx.core.content.ContextCompat
+import com.example.sakuku.R
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.sakuku.data.remote.dto.WilayahItem
 import com.example.sakuku.ui.components.AuthButtonGradient
 import com.example.sakuku.ui.components.FieldLabel
 import com.example.sakuku.ui.components.GradientButton
+import com.example.sakuku.ui.components.OtpCodeInput
+import com.example.sakuku.ui.components.RegionDropdownField
+import com.example.sakuku.ui.components.RupiahVisualTransformation
 import com.example.sakuku.ui.components.SakukuOutlinedField
+import com.example.sakuku.ui.components.TanggalLahirField
 import com.example.sakuku.ui.theme.BlobDark
 import com.example.sakuku.ui.theme.BlobMid
 import com.example.sakuku.ui.theme.PlusJakartaSans
 import com.example.sakuku.ui.theme.sakukuBlobBackground
 import com.example.sakuku.ui.theme.SakukuTheme
+import java.io.File
 
+// Register direstrukturisasi 17 Sept, URUTAN BARU jadi 4 step: Akun -> Verifikasi OTP ->
+// Identitas (Foto KTP+NIK+Domisili+DOB) -> Data Pekerjaan. Sebelumnya NIK ada di step Akun dan
+// Data Pekerjaan ada SEBELUM Foto KTP - dibalik. onRegisterSuccess sekarang baru terpicu abis
+// Step 3 (Data Pekerjaan) selesai, bukan lagi Step 2 (Foto KTP).
 @Composable
 fun RegisterScreen(
-    // Sekarang bawa email juga (bukan cuma namaLengkap) - dibutuhin buat lanjut ke layar
-    // Verifikasi OTP (POST /customer/verify-otp butuh email, bukan nama).
-    onRegisterSuccess: (email: String, namaLengkap: String) -> Unit,
+    onRegisterSuccess: (namaLengkap: String) -> Unit,
     onNavigateToLogin: () -> Unit = {},
     onBack: () -> Unit = {},
+    googleEmail: String? = null,
+    googleName: String? = null,
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val webClientId = stringResource(R.string.google_web_client_id)
+
+    LaunchedEffect(googleEmail) {
+        if (googleEmail != null) viewModel.prefillFromGoogle(googleEmail, googleName)
+    }
 
     LaunchedEffect(uiState.registerSuccess) {
-        if (uiState.registerSuccess) onRegisterSuccess(uiState.email, uiState.namaLengkap)
+        if (uiState.registerSuccess) onRegisterSuccess(uiState.namaLengkap)
+    }
+
+    LaunchedEffect(uiState.toastMessage) {
+        uiState.toastMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.consumeToast()
+        }
     }
 
     RegisterScreenContent(
+        onGoogleSignInClick = { viewModel.signInWithGoogle(context, webClientId) },
         uiState = uiState,
         onNamaLengkapChange = viewModel::onNamaLengkapChange,
-        onNikChange = viewModel::onNikChange,
         onEmailChange = viewModel::onEmailChange,
         onNoHpChange = viewModel::onNoHpChange,
         onPasswordChange = viewModel::onPasswordChange,
         onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
         onAgreedToTermsChange = viewModel::onAgreedToTermsChange,
+        onOtpCodeChange = viewModel::onOtpCodeChange,
+        onVerifyOtp = viewModel::verifyOtp,
+        onResendOtp = viewModel::resendOtp,
+        onRetryAutoLogin = viewModel::retryAutoLogin,
+        onNikChange = viewModel::onNikChange,
+        onTanggalLahirChange = viewModel::onTanggalLahirChange,
+        onProvinsiSelected = viewModel::onProvinsiSelected,
+        onKotaSelected = viewModel::onKotaSelected,
+        onKecamatanSelected = viewModel::onKecamatanSelected,
+        onFotoKtpCaptured = viewModel::onFotoKtpCaptured,
+        onRetryProvinsi = viewModel::retryFetchProvinsi,
+        onSubmitIdentitas = viewModel::submitIdentitas,
         onTipePekerjaanChange = viewModel::onTipePekerjaanChange,
         onPekerjaanChange = viewModel::onPekerjaanChange,
         onPendapatanBulananChange = viewModel::onPendapatanBulananChange,
-        onNextStep = viewModel::goToStep2,
-        onPrevStep = viewModel::goToStep1,
-        onSubmit = viewModel::register,
+        onSubmitDataPekerjaan = viewModel::submitDataPekerjaan,
+        onSubmitAccount = viewModel::submitAccount,
         onNavigateToLogin = onNavigateToLogin,
         onBack = onBack
     )
@@ -105,18 +161,29 @@ fun RegisterScreen(
 private fun RegisterScreenContent(
     uiState: RegisterUiState,
     onNamaLengkapChange: (String) -> Unit,
-    onNikChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onNoHpChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
     onAgreedToTermsChange: (Boolean) -> Unit,
+    onOtpCodeChange: (String) -> Unit,
+    onVerifyOtp: () -> Unit,
+    onResendOtp: () -> Unit,
+    onRetryAutoLogin: () -> Unit,
+    onNikChange: (String) -> Unit,
+    onTanggalLahirChange: (String) -> Unit,
+    onProvinsiSelected: (WilayahItem) -> Unit,
+    onKotaSelected: (WilayahItem) -> Unit,
+    onKecamatanSelected: (WilayahItem) -> Unit,
+    onFotoKtpCaptured: (Uri) -> Unit,
+    onRetryProvinsi: () -> Unit = {},
+    onSubmitIdentitas: () -> Unit,
     onTipePekerjaanChange: (TipePekerjaan) -> Unit,
     onPekerjaanChange: (String) -> Unit,
     onPendapatanBulananChange: (String) -> Unit,
-    onNextStep: () -> Unit,
-    onPrevStep: () -> Unit,
-    onSubmit: () -> Unit,
+    onSubmitDataPekerjaan: () -> Unit,
+    onSubmitAccount: () -> Unit,
+    onGoogleSignInClick: () -> Unit = {},
     onNavigateToLogin: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -126,20 +193,21 @@ private fun RegisterScreenContent(
             .sakukuBlobBackground()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = ScreenPadding.Horizontal)
             .navigationBarsPadding()
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        IconButton(onClick = if (uiState.currentStep == 0) onBack else onPrevStep) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Kembali",
-                tint = Color.White
-            )
+        if (uiState.currentStep == 0) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Kembali",
+                    tint = Color.White
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "Daftar",
@@ -150,10 +218,11 @@ private fun RegisterScreenContent(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = if (uiState.currentStep == 0) {
-                "Mulai perjalanan finansialmu bareng kami"
-            } else {
-                "Sebelum mulai, kami ingin mengenalmu lebih jauh!"
+            text = when (uiState.currentStep) {
+                0 -> "Mulai perjalanan finansialmu bareng kami"
+                1 -> "Masukkan kode OTP yang dikirim ke ${uiState.email}"
+                2 -> "Verifikasi identitas kamu - siapin KTP-mu ya"
+                else -> "Terakhir, ceritain soal pekerjaanmu"
             },
             color = Color.White.copy(alpha = 0.7f),
             fontFamily = PlusJakartaSans,
@@ -162,19 +231,33 @@ private fun RegisterScreenContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if (uiState.currentStep == 0) {
-            RegisterStep1Fields(
+        when (uiState.currentStep) {
+            0 -> RegisterStep1Fields(
                 uiState = uiState,
                 onNamaLengkapChange = onNamaLengkapChange,
-                onNikChange = onNikChange,
                 onEmailChange = onEmailChange,
                 onNoHpChange = onNoHpChange,
                 onPasswordChange = onPasswordChange,
                 onConfirmPasswordChange = onConfirmPasswordChange,
                 onAgreedToTermsChange = onAgreedToTermsChange
             )
-        } else {
-            RegisterStep2Fields(
+            1 -> RegisterStepOtp(
+                uiState = uiState,
+                onOtpCodeChange = onOtpCodeChange,
+                onResendOtp = onResendOtp,
+                onRetryAutoLogin = onRetryAutoLogin
+            )
+            2 -> RegisterStepIdentitas(
+                uiState = uiState,
+                onNikChange = onNikChange,
+                onTanggalLahirChange = onTanggalLahirChange,
+                onProvinsiSelected = onProvinsiSelected,
+                onKotaSelected = onKotaSelected,
+                onKecamatanSelected = onKecamatanSelected,
+                onFotoKtpCaptured = onFotoKtpCaptured,
+                onRetryProvinsi = onRetryProvinsi
+            )
+            else -> RegisterStepPekerjaan(
                 uiState = uiState,
                 onTipePekerjaanChange = onTipePekerjaanChange,
                 onPekerjaanChange = onPekerjaanChange,
@@ -186,17 +269,52 @@ private fun RegisterScreenContent(
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
         }
+        uiState.otpInfoMessage?.let { message ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = message, color = BlobDark, fontFamily = PlusJakartaSans, fontSize = 12.sp)
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        GradientButton(
-            text = "Daftar",
-            onClick = if (uiState.currentStep == 0) onNextStep else onSubmit,
-            enabled = !uiState.isLoading,
-            isLoading = uiState.currentStep == 1 && uiState.isLoading
-        )
+        when (uiState.currentStep) {
+            0 -> GradientButton(
+                text = "Daftar",
+                onClick = onSubmitAccount,
+                enabled = !uiState.isLoading,
+                isLoading = uiState.isLoading
+            )
+            1 -> if (uiState.needsManualLoginRetry) {
+                GradientButton(text = "Coba Lagi", onClick = onRetryAutoLogin, isLoading = uiState.isVerifyingOtp)
+            } else {
+                GradientButton(
+                    text = "Verifikasi",
+                    onClick = onVerifyOtp,
+                    enabled = uiState.canSubmitOtp,
+                    isLoading = uiState.isVerifyingOtp
+                )
+            }
+            2 -> GradientButton(
+                text = "Lanjutkan",
+                onClick = onSubmitIdentitas,
+                enabled = !uiState.isLoading,
+                isLoading = uiState.isLoading
+            )
+            else -> GradientButton(
+                text = "Selesai",
+                onClick = onSubmitDataPekerjaan,
+                enabled = !uiState.isLoading,
+                isLoading = uiState.isLoading
+            )
+        }
 
         if (uiState.currentStep == 0) {
+            // "Daftar dengan Google" manggil FUNGSI YANG SAMA kayak "Masuk dengan Google" di
+            // LoginScreen (RegisterViewModel.signInWithGoogle(), yang di dalamnya juga manggil
+            // AuthRepository.googleSignIn() yang sama) - bukan endpoint/alur terpisah. Backend
+            // cuma punya 1 pintu buat ngecek "email ini udah ada akun apa belum", jadi baik dari
+            // sini maupun dari Login hasilnya sama - LoggedIn (ternyata udah ada akun -> langsung
+            // dianggap sukses daftar, skip form) atau NeedsRegistration (lock email, lanjut isi
+            // form yang lagi kebuka ini, gak pindah layar).
             Spacer(modifier = Modifier.height(20.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -214,7 +332,8 @@ private fun RegisterScreenContent(
             Spacer(modifier = Modifier.height(20.dp))
 
             Button(
-                onClick = { /* TODO: Daftar dengan Google - belum ada backend-nya */ },
+                onClick = onGoogleSignInClick,
+                enabled = !uiState.isLoading,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 contentPadding = PaddingValues(),
@@ -274,7 +393,6 @@ private fun RegisterScreenContent(
 private fun RegisterStep1Fields(
     uiState: RegisterUiState,
     onNamaLengkapChange: (String) -> Unit,
-    onNikChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onNoHpChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
@@ -288,12 +406,24 @@ private fun RegisterStep1Fields(
     SakukuOutlinedField(value = uiState.namaLengkap, onValueChange = onNamaLengkapChange, keyboardType = KeyboardType.Text)
 
     Spacer(modifier = Modifier.height(16.dp))
-    FieldLabel("NIK")
-    SakukuOutlinedField(value = uiState.nik, onValueChange = onNikChange, keyboardType = KeyboardType.Number)
-
-    Spacer(modifier = Modifier.height(16.dp))
     FieldLabel("Email")
-    SakukuOutlinedField(value = uiState.email, onValueChange = onEmailChange, keyboardType = KeyboardType.Email)
+    SakukuOutlinedField(
+        value = uiState.email,
+        onValueChange = onEmailChange,
+        keyboardType = KeyboardType.Email,
+        // Terkunci kalau datang dari "Masuk dengan Google" - email itu udah diverifikasi Google,
+        // gak boleh diketik ulang jadi beda dari akun yang barusan dipakai sign-in.
+        readOnly = uiState.emailLocked
+    )
+    if (uiState.emailLocked) {
+        Text(
+            text = "Email terverifikasi lewat Google",
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 11.sp,
+            fontFamily = PlusJakartaSans,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
 
     Spacer(modifier = Modifier.height(16.dp))
     FieldLabel("Nomor Telepon")
@@ -377,7 +507,136 @@ private fun RegisterStep1Fields(
 }
 
 @Composable
-private fun RegisterStep2Fields(
+private fun RegisterStepOtp(
+    uiState: RegisterUiState,
+    onOtpCodeChange: (String) -> Unit,
+    onResendOtp: () -> Unit,
+    onRetryAutoLogin: () -> Unit
+) {
+    Column {
+        OtpCodeInput(code = uiState.otpCode, onCodeChange = onOtpCodeChange)
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Belum menerima OTP? ",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 13.sp,
+                fontFamily = PlusJakartaSans
+            )
+            Text(
+                text = if (uiState.resendCooldown > 0) "Kirim ulang (${uiState.resendCooldown}s)" else "Kirim ulang OTP",
+                color = if (uiState.resendCooldown > 0) Color.White.copy(alpha = 0.4f) else Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                fontFamily = PlusJakartaSans,
+                modifier = Modifier.clickable(
+                    enabled = uiState.resendCooldown == 0 && !uiState.isResendingOtp,
+                    onClick = onResendOtp
+                )
+            )
+        }
+
+        if (uiState.needsManualLoginRetry) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Kode udah terpakai - tombol di bawah cuma coba login ulang, bukan verifikasi OTP lagi.",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 11.5.sp,
+                fontFamily = PlusJakartaSans,
+                modifier = Modifier.clickable(onClick = onRetryAutoLogin)
+            )
+        }
+    }
+}
+
+// Step 2 (BARU sejak 17 Sept) - gabungan NIK + Domisili (cascading Provinsi/Kota/Kecamatan) +
+// Tanggal Lahir + Foto KTP dalam 1 step. NIK/Domisili/Tanggal Lahir WAJIB (divalidasi di
+// RegisterViewModel.submitIdentitas()), Foto KTP tetap opsional (kamera bisa gagal - izin
+// ditolak/device tanpa kamera - gak boleh nge-block registrasi, bisa dilengkapi belakangan
+// lewat menu KTP & Data Diri di Profil).
+@Composable
+private fun RegisterStepIdentitas(
+    uiState: RegisterUiState,
+    onNikChange: (String) -> Unit,
+    onTanggalLahirChange: (String) -> Unit,
+    onProvinsiSelected: (WilayahItem) -> Unit,
+    onKotaSelected: (WilayahItem) -> Unit,
+    onKecamatanSelected: (WilayahItem) -> Unit,
+    onFotoKtpCaptured: (Uri) -> Unit,
+    onRetryProvinsi: () -> Unit = {}
+) {
+    Column {
+        RegisterStepFotoKtp(uiState = uiState, onFotoKtpCaptured = onFotoKtpCaptured)
+        Text(
+            text = "Opsional - bisa dilengkapi lagi nanti dari Profil kalau kamera gak bisa dipakai sekarang.",
+            color = Color.White.copy(alpha = 0.4f),
+            fontFamily = PlusJakartaSans,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+        FieldLabel("NIK")
+        SakukuOutlinedField(value = uiState.nik, onValueChange = onNikChange, keyboardType = KeyboardType.Number)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        FieldLabel("Tanggal Lahir")
+        TanggalLahirField(value = uiState.tanggalLahir, onValueChange = onTanggalLahirChange)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        FieldLabel("Provinsi")
+        RegionDropdownField(
+            label = "Provinsi",
+            selectedName = uiState.selectedProvinsi?.name,
+            options = uiState.provinsiList,
+            enabled = true,
+            isLoading = uiState.isLoadingProvinsi,
+            onSelect = onProvinsiSelected
+        )
+        // Gagal fetch provinsi = listnya kosong selamanya tanpa tombol ini, gak ada cara lain
+        // buat coba lagi (beda dari kota/kecamatan yang bisa "dipancing" retry dengan pilih ulang
+        // parent-nya).
+        if (uiState.provinsiList.isEmpty() && !uiState.isLoadingProvinsi) {
+            Text(
+                text = "Gagal memuat daftar provinsi - Coba lagi",
+                color = BlobDark,
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.5.sp,
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .clickable(onClick = onRetryProvinsi)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        FieldLabel("Kota/Kabupaten")
+        RegionDropdownField(
+            label = "Kota/Kabupaten",
+            selectedName = uiState.selectedKota?.name,
+            options = uiState.kotaList,
+            enabled = uiState.selectedProvinsi != null,
+            isLoading = uiState.isLoadingKota,
+            onSelect = onKotaSelected
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        FieldLabel("Kecamatan")
+        RegionDropdownField(
+            label = "Kecamatan",
+            selectedName = uiState.selectedKecamatan?.name,
+            options = uiState.kecamatanList,
+            enabled = uiState.selectedKota != null,
+            isLoading = uiState.isLoadingKecamatan,
+            onSelect = onKecamatanSelected
+        )
+    }
+}
+
+@Composable
+private fun RegisterStepPekerjaan(
     uiState: RegisterUiState,
     onTipePekerjaanChange: (TipePekerjaan) -> Unit,
     onPekerjaanChange: (String) -> Unit,
@@ -427,8 +686,108 @@ private fun RegisterStep2Fields(
     SakukuOutlinedField(
         value = uiState.pendapatanBulanan,
         onValueChange = onPendapatanBulananChange,
-        keyboardType = KeyboardType.Number
+        keyboardType = KeyboardType.Number,
+        visualTransformation = RupiahVisualTransformation(),
+        placeholder = "Contoh: 5000000"
     )
+}
+
+// Capture foto KTP via kamera - pola diambil dari KotlinTest/screens/TransactionScreen.kt
+// (ActivityResultContracts.TakePicture() + FileProvider). Gak pakai OCR (didefer jadi
+// enhancement nanti) - NIK tetap diisi manual di step ini, foto ini murni dokumen pendukung.
+@Composable
+private fun RegisterStepFotoKtp(
+    uiState: RegisterUiState,
+    onFotoKtpCaptured: (Uri) -> Unit
+) {
+    val context = LocalContext.current
+    var captureUri by remember { mutableStateOf<Uri?>(null) }
+
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        if (saved) captureUri?.let(onFotoKtpCaptured)
+    }
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val uri = createKtpCaptureUri(context)
+            captureUri = uri
+            takePicture.launch(uri)
+        }
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        val previewUri = uiState.fotoKtpPreviewUri
+        if (previewUri != null) {
+            val bitmap = remember(previewUri) {
+                context.contentResolver.openInputStream(previewUri)?.use { BitmapFactory.decodeStream(it) }
+            }
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "Foto KTP",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1.6f)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.6f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.05f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.CreditCard, contentDescription = null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.height(48.dp))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        Text(
+            text = "Pastikan seluruh bagian KTP kelihatan jelas dan gak buram.",
+            color = Color.White.copy(alpha = 0.6f),
+            fontFamily = PlusJakartaSans,
+            fontSize = 12.5.sp,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                val permissionStatus = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
+                    val uri = createKtpCaptureUri(context)
+                    captureUri = uri
+                    takePicture.launch(uri)
+                } else {
+                    requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f)),
+            modifier = Modifier.fillMaxWidth().height(52.dp)
+        ) {
+            Icon(Icons.Rounded.CameraAlt, contentDescription = null, tint = Color.White)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (previewUri != null) "Foto Ulang" else "Ambil Foto KTP",
+                color = Color.White,
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+private fun createKtpCaptureUri(context: android.content.Context): Uri {
+    val directory = File(context.cacheDir, "camera").apply { mkdirs() }
+    val file = File.createTempFile("ktp_", ".jpg", directory)
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
 
 @Preview(showBackground = true)
@@ -437,24 +796,64 @@ private fun RegisterStep1Preview() {
     SakukuTheme {
         RegisterScreenContent(
             uiState = RegisterUiState(currentStep = 0),
-            onNamaLengkapChange = {}, onNikChange = {}, onEmailChange = {}, onNoHpChange = {},
+            onNamaLengkapChange = {}, onEmailChange = {}, onNoHpChange = {},
             onPasswordChange = {}, onConfirmPasswordChange = {}, onAgreedToTermsChange = {},
-            onTipePekerjaanChange = {}, onPekerjaanChange = {}, onPendapatanBulananChange = {},
-            onNextStep = {}, onPrevStep = {}, onSubmit = {}, onNavigateToLogin = {}, onBack = {}
+            onOtpCodeChange = {}, onVerifyOtp = {}, onResendOtp = {}, onRetryAutoLogin = {},
+            onNikChange = {}, onTanggalLahirChange = {}, onProvinsiSelected = {}, onKotaSelected = {}, onKecamatanSelected = {},
+            onFotoKtpCaptured = {}, onSubmitIdentitas = {},
+            onTipePekerjaanChange = {}, onPekerjaanChange = {}, onPendapatanBulananChange = {}, onSubmitDataPekerjaan = {},
+            onSubmitAccount = {}, onNavigateToLogin = {}, onBack = {}
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun RegisterStep2Preview() {
+private fun RegisterStepOtpPreview() {
     SakukuTheme {
         RegisterScreenContent(
-            uiState = RegisterUiState(currentStep = 1),
-            onNamaLengkapChange = {}, onNikChange = {}, onEmailChange = {}, onNoHpChange = {},
+            uiState = RegisterUiState(currentStep = 1, email = "novita.sari@mail.com", otpCode = "12"),
+            onNamaLengkapChange = {}, onEmailChange = {}, onNoHpChange = {},
             onPasswordChange = {}, onConfirmPasswordChange = {}, onAgreedToTermsChange = {},
-            onTipePekerjaanChange = {}, onPekerjaanChange = {}, onPendapatanBulananChange = {},
-            onNextStep = {}, onPrevStep = {}, onSubmit = {}, onNavigateToLogin = {}, onBack = {}
+            onOtpCodeChange = {}, onVerifyOtp = {}, onResendOtp = {}, onRetryAutoLogin = {},
+            onNikChange = {}, onTanggalLahirChange = {}, onProvinsiSelected = {}, onKotaSelected = {}, onKecamatanSelected = {},
+            onFotoKtpCaptured = {}, onSubmitIdentitas = {},
+            onTipePekerjaanChange = {}, onPekerjaanChange = {}, onPendapatanBulananChange = {}, onSubmitDataPekerjaan = {},
+            onSubmitAccount = {}, onNavigateToLogin = {}, onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+private fun RegisterStepIdentitasPreview() {
+    SakukuTheme {
+        RegisterScreenContent(
+            uiState = RegisterUiState(currentStep = 2),
+            onNamaLengkapChange = {}, onEmailChange = {}, onNoHpChange = {},
+            onPasswordChange = {}, onConfirmPasswordChange = {}, onAgreedToTermsChange = {},
+            onOtpCodeChange = {}, onVerifyOtp = {}, onResendOtp = {}, onRetryAutoLogin = {},
+            onNikChange = {}, onTanggalLahirChange = {}, onProvinsiSelected = {}, onKotaSelected = {}, onKecamatanSelected = {},
+            onFotoKtpCaptured = {}, onSubmitIdentitas = {},
+            onTipePekerjaanChange = {}, onPekerjaanChange = {}, onPendapatanBulananChange = {}, onSubmitDataPekerjaan = {},
+            onSubmitAccount = {}, onNavigateToLogin = {}, onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun RegisterStepPekerjaanPreview() {
+    SakukuTheme {
+        RegisterScreenContent(
+            uiState = RegisterUiState(currentStep = 3),
+            onNamaLengkapChange = {}, onEmailChange = {}, onNoHpChange = {},
+            onPasswordChange = {}, onConfirmPasswordChange = {}, onAgreedToTermsChange = {},
+            onOtpCodeChange = {}, onVerifyOtp = {}, onResendOtp = {}, onRetryAutoLogin = {},
+            onNikChange = {}, onTanggalLahirChange = {}, onProvinsiSelected = {}, onKotaSelected = {}, onKecamatanSelected = {},
+            onFotoKtpCaptured = {}, onSubmitIdentitas = {},
+            onTipePekerjaanChange = {}, onPekerjaanChange = {}, onPendapatanBulananChange = {}, onSubmitDataPekerjaan = {},
+            onSubmitAccount = {}, onNavigateToLogin = {}, onBack = {}
         )
     }
 }

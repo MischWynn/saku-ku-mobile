@@ -1,5 +1,8 @@
 package com.example.sakuku.ui.home
 
+import com.example.sakuku.data.repository.NotificationRepository
+import java.time.temporal.ChronoUnit
+import java.time.LocalDate
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sakuku.data.local.TokenDataStore
@@ -25,7 +28,16 @@ private const val MIN_NOMINAL = 500_000.0
 private val PIPELINE_STATUSES = setOf("MARKETING_REVIEW", "BM_REVIEW", "BACKOFFICE_REVIEW")
 
 // Preview 1 kartu tagihan buat Home - versi ringkas dari yang ditampilin penuh di BayarScreen.
-data class TagihanPreview(val cicilanBulanan: Double, val dueDateLabel: String?)
+data class TagihanPreview(val cicilanBulanan: Double, val dueDateLabel: String?, val daysUntilDue: Long?)
+
+// Syarat data yang WAJIB lengkap sebelum bisa ngajuin pinjaman - sama persis dengan gerbang di
+// PengajuanViewModel/PengajuanService, biar meter di Beranda gak bilang "lengkap" padahal
+// pengajuannya masih ditolak.
+enum class ProfileRequirement(val label: String) {
+    TANGGAL_LAHIR("Tanggal lahir"),
+    PEKERJAAN("Pekerjaan & pendapatan"),
+    REKENING("Rekening bank")
+}
 
 data class HomeUiState(
     val isLoading: Boolean = true,
@@ -34,19 +46,16 @@ data class HomeUiState(
     val selectedTenorId: String? = null,
     val nominal: Double = 1_000_000.0,
     val errorMessage: String? = null,
-    // --- Personalisasi logged-in - semua null/false kalau guest ---
     val isLoggedIn: Boolean = false,
     val customerName: String? = null,
     val tierPlafond: String? = null,
     val sisaPlafond: Double? = null,
     val plafondTotal: Double? = null,
-    // Pengajuan yang masih direview - null kalau gak ada yang lagi jalan.
     val activeLoan: PengajuanMeResponse? = null,
-    // Preview tagihan dari pinjaman DISBURSED terbaru - null kalau gak ada pinjaman aktif.
-    val tagihanPreview: TagihanPreview? = null
+    val tagihanPreview: TagihanPreview? = null,
+    val missingRequirements: List<ProfileRequirement> = emptyList(),
+    val unreadNotifCount: Int = 0
 ) {
-    // Guest di-cap ke tier tertinggi yang ada (belum py plafond personal). Customer login
-    // di-cap ke sisaPlafond ASLI-nya, bukan tier tertinggi - itu batas yang beneran berlaku.
     val maxNominal: Double
         get() = if (isLoggedIn && sisaPlafond != null) {
             sisaPlafond
@@ -63,6 +72,7 @@ class HomeViewModel @Inject constructor(
     private val homeRepository: HomeRepository,
     private val customerRepository: CustomerRepository,
     private val pengajuanRepository: PengajuanRepository,
+    private val notificationRepository: NotificationRepository,
     private val tokenDataStore: TokenDataStore
 ) : ViewModel() {
 
@@ -74,9 +84,6 @@ class HomeViewModel @Inject constructor(
         observeLoginState()
     }
 
-    // Katalog tier/tenor itu publik (permitAll di backend) - selalu di-fetch terlepas dari
-    // status login, dipakai bareng buat widget Simulasi & strip tier baik versi guest maupun
-    // logged-in.
     private fun loadPublicData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -101,9 +108,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    // Reaktif terhadap TokenDataStore - kalau user login/logout sementara Home ini masih di
-    // memory (jarang kejadian karena nav biasanya re-create Home, tapi lebih aman gini
-    // daripada one-shot check), profil ke-refresh/dikosongin otomatis.
     private fun observeLoginState() {
         viewModelScope.launch {
             tokenDataStore.tokenFlow.collect { token ->
@@ -119,7 +123,9 @@ class HomeViewModel @Inject constructor(
                             sisaPlafond = null,
                             plafondTotal = null,
                             activeLoan = null,
-                            tagihanPreview = null
+                            tagihanPreview = null,
+                            missingRequirements = emptyList(),
+                            unreadNotifCount = 0
                         )
                     }
                 }
@@ -127,10 +133,18 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    // Dipanggil tiap Beranda kebuka lagi. observeLoginState() cuma reload pas token berubah
+    // (login/logout), jadi perubahan profil/plafond/pengajuan setelah itu gak kebaca sampai
+    // app dibuka ulang.
+    fun refresh() {
+        if (_uiState.value.isLoggedIn) loadProfileData()
+    }
+
     private fun loadProfileData() {
         viewModelScope.launch {
             val profileResult = customerRepository.getMe()
             val pengajuanResult = pengajuanRepository.getMyPengajuan()
+            val notifResult = notificationRepository.getAll()
 
             val profile = profileResult.getOrNull()
             val pengajuanList = pengajuanResult.getOrDefault(emptyList())
@@ -146,17 +160,13 @@ class HomeViewModel @Inject constructor(
                     loan.tenor,
                     loan.interestRate
                 )
+                val dueDate = loan.tanggalPencairan?.let { iso -> LoanCalculator.nextDueDate(iso) }
                 TagihanPreview(
                     cicilanBulanan = estimate.cicilanBulanan,
-                    dueDateLabel = loan.tanggalPencairan?.let { iso -> LoanCalculator.nextDueDateLabel(iso) }
+                    dueDateLabel = loan.tanggalPencairan?.let { iso -> LoanCalculator.nextDueDateLabel(iso) },
+                    daysUntilDue = dueDate?.let { ChronoUnit.DAYS.between(LocalDate.now(), it) }
                 )
             }
-
-            // sisaPlafond baru ini yang bakal jadi maxNominal begitu isLoggedIn=true - dihitung
-            // eksplisit di sini (bukan baca it.maxNominal di dalam update{}, yang masih baca
-            // state LAMA sebelum copy diterapin). Sama pola aman kayak fix crash Ajukan
-            // Pinjaman: kalau sisaPlafond di bawah MIN_NOMINAL, jangan coerceIn (bisa nge-throw
-            // "max < min"), langsung pakai sisaPlafond apa adanya.
             val newMaxNominal = profile?.sisaPlafond ?: _uiState.value.maxNominal
 
             _uiState.update { current ->
@@ -166,12 +176,20 @@ class HomeViewModel @Inject constructor(
                     tierPlafond = profile?.tierPlafond,
                     sisaPlafond = profile?.sisaPlafond,
                     plafondTotal = profile?.plafond,
-                    // Kalau ada pengajuan yang masih direview, itu yang ditonjolin duluan -
-                    // baru kalau gak ada, tagihan pinjaman yang udah cair ditampilin.
                     activeLoan = activeLoan,
-                    tagihanPreview = if (activeLoan == null) tagihanPreview else null,
-                    // Nominal simulasi ikut nyesuain begitu sisaPlafond keisi, biar gak nyangkut
-                    // di atas batas yang beneran berlaku buat customer ini.
+                    tagihanPreview = tagihanPreview,
+                    // Profil gagal dimuat -> jangan nampilin meter "belum lengkap" yang palsu.
+                    // Gagal fetch -> badge lonceng pakai angka terakhir, bukan dipaksa 0.
+                    unreadNotifCount = notifResult.getOrNull()?.count { n -> !n.isRead } ?: current.unreadNotifCount,
+                    missingRequirements = profile?.let { p ->
+                        buildList {
+                            if (p.tanggalLahir.isNullOrBlank()) add(ProfileRequirement.TANGGAL_LAHIR)
+                            if (p.pekerjaan.isNullOrBlank() || p.pendapatanBulanan == null) add(ProfileRequirement.PEKERJAAN)
+                            if (p.namaBank.isNullOrBlank() || p.nomorRekening.isNullOrBlank() || p.namaPemilikRekening.isNullOrBlank()) {
+                                add(ProfileRequirement.REKENING)
+                            }
+                        }
+                    } ?: emptyList(),
                     nominal = if (newMaxNominal < MIN_NOMINAL) {
                         newMaxNominal.coerceAtLeast(0.0)
                     } else {

@@ -1,5 +1,7 @@
 package com.example.sakuku.ui.screens.plafond
 
+import com.example.sakuku.ui.theme.screenTitleInset
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -56,9 +58,6 @@ private fun tierColor(namaPlafond: String): Color = when (namaPlafond.lowercase(
     else -> Color.White.copy(alpha = 0.6f)
 }
 
-// Versi tamu (guest) - belum ada login, jadi belum ada "kartu kamu" personal, cuma katalog
-// tier publik (GET /plafond). Versi logged-in (kartu personal + sisaPlafond + tierPlafond)
-// nanti nyusul setelah alur auth token/DataStore beres - lihat CLAUDE.md project.
 @Composable
 fun PlafondScreen(
     onBack: () -> Unit = {},
@@ -90,10 +89,10 @@ private fun PlafondScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = ScreenPadding.Horizontal)
                 .padding(top = 20.dp, bottom = 32.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.screenTitleInset(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Kembali", tint = Color.White)
                 }
@@ -109,7 +108,7 @@ private fun PlafondScreenContent(
 
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Limit dihitung otomatis dari profilmu saat daftar — makin lengkap datamu, semakin tinggi plafondmu.",
+                text = "Limit dihitung otomatis dari profilmu saat daftar.",
                 color = Color.White.copy(alpha = 0.6f),
                 fontFamily = PlusJakartaSans,
                 fontSize = 12.5.sp,
@@ -150,27 +149,32 @@ private fun PlafondScreenContent(
                         uiState.tiers.forEach { tier -> TierFullCard(tier) }
                     }
 
-                    Spacer(modifier = Modifier.height(22.dp))
+                    if (!uiState.isLoggedIn) {
+                        Spacer(modifier = Modifier.height(22.dp))
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(GlassFill)
-                            .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
-                            .padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Daftar sekarang & lengkapi profilmu untuk lihat plafond milikmu sendiri.",
-                            color = Color.White.copy(alpha = 0.75f),
-                            fontFamily = PlusJakartaSans,
-                            fontSize = 12.5.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            lineHeight = 17.sp
-                        )
-                        GradientButton(text = "Daftar untuk cek plafondmu", onClick = onNavigateToRegister)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(GlassFill)
+                                .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
+                                .padding(18.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Daftar sekarang & lengkapi profilmu untuk lihat plafond milikmu sendiri.",
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 12.5.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                lineHeight = 17.sp
+                            )
+                            GradientButton(
+                                text = "Daftar untuk cek plafondmu",
+                                onClick = onNavigateToRegister
+                            )
+                        }
                     }
                 }
             }

@@ -3,10 +3,12 @@ package com.example.sakuku.data.remote.dto
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
+// nik opsional sejak 17 Sept - NIK dipindah ke step Foto KTP (setelah OTP, lewat
+// CustomerUpdateRequest.nik), bukan lagi dikumpulin di step Akun.
 @Serializable
 data class RegisterRequest(
     val namaLengkap: String,
-    val nik: String,
+    val nik: String? = null,
     val email: String,
     val noHp: String,
     val password: String,

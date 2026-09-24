@@ -1,5 +1,7 @@
 package com.example.sakuku.ui.screens.profil
 
+import com.example.sakuku.ui.theme.screenTitleInset
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,12 +21,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,9 +63,20 @@ import com.example.sakuku.ui.theme.sakukuBlobBackground
 @Composable
 fun KeamananAkunScreen(
     onBack: () -> Unit = {},
+    onLoggedOut: () -> Unit = {},
     viewModel: KeamananAkunViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.loggedOut) {
+        if (uiState.loggedOut) onLoggedOut()
+    }
+
+    // Popup (Toast) juga, selain pesan hijau di bawah form - pola sama kayak notif "sesi habis".
+    val context = LocalContext.current
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
 
     KeamananAkunContent(
         uiState = uiState,
@@ -67,7 +84,11 @@ fun KeamananAkunScreen(
         onOldPasswordChange = viewModel::onOldPasswordChange,
         onNewPasswordChange = viewModel::onNewPasswordChange,
         onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
-        onSubmit = viewModel::submit
+        onSubmit = viewModel::submit,
+        onShowDeleteDialog = viewModel::onShowDeleteDialog,
+        onDismissDeleteDialog = viewModel::onDismissDeleteDialog,
+        onDeletePasswordChange = viewModel::onDeletePasswordChange,
+        onConfirmDelete = viewModel::confirmDeleteAccount
     )
 }
 
@@ -78,11 +99,26 @@ private fun KeamananAkunContent(
     onOldPasswordChange: (String) -> Unit,
     onNewPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
+    onShowDeleteDialog: () -> Unit = {},
+    onDismissDeleteDialog: () -> Unit = {},
+    onDeletePasswordChange: (String) -> Unit = {},
+    onConfirmDelete: () -> Unit = {}
 ) {
     var oldVisible by remember { mutableStateOf(false) }
     var newVisible by remember { mutableStateOf(false) }
     var confirmVisible by remember { mutableStateOf(false) }
+
+    if (uiState.showDeleteDialog) {
+        DeleteAccountDialog(
+            password = uiState.deletePassword,
+            isDeleting = uiState.isDeleting,
+            errorMessage = uiState.deleteError,
+            onPasswordChange = onDeletePasswordChange,
+            onConfirm = onConfirmDelete,
+            onDismiss = onDismissDeleteDialog
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -94,14 +130,14 @@ private fun KeamananAkunContent(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = ScreenPadding.Horizontal)
                 // bottom 120dp (bukan 32dp) - nyamain pola ProfilScreen.kt, floating
                 // AnimatedBottomNavBar butuh clearance segitu biar konten paling bawah gak
                 // ketutup nav bar-nya.
                 .padding(top = 24.dp, bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.screenTitleInset().fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -118,7 +154,6 @@ private fun KeamananAkunContent(
                     color = Color.White,
                     fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold,
-                    fontStyle = FontStyle.Italic,
                     fontSize = 20.sp
                 )
             }
@@ -204,11 +239,44 @@ private fun KeamananAkunContent(
             }
 
             GradientButton(text = "Ganti Password", onClick = onSubmit, isLoading = uiState.isLoading)
+
+            // Zona Berbahaya - section TERPISAH dari form ganti password di atas (bukan nempel
+            // langsung setelahnya), niru pola MenuSection di overview Profil. Sengaja dipisah
+            // biar konteksnya jelas beda (destruktif vs biasa), bukan asal ditumpuk.
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "ZONA BERBAHAYA",
+                    color = Color(0xFFF28FA0).copy(alpha = 0.7f),
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFF28FA0).copy(alpha = 0.08f))
+                        .clickable(onClick = onShowDeleteDialog)
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = Color(0xFFF28FA0))
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text("Hapus Akun", color = Color(0xFFF28FA0), fontFamily = PlusJakartaSans, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Permanen, gak bisa dibatalin", color = Color(0xFFF28FA0).copy(alpha = 0.6f), fontFamily = PlusJakartaSans, fontSize = 11.sp)
+                    }
+                }
+            }
         }
     }
 }
 
-@Preview(showBackground = true, heightDp = 1000)
+@Preview(showBackground = true, heightDp = 1100)
 @Composable
 private fun KeamananAkunScreenPreview() {
     SakukuTheme {

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Lock
@@ -37,13 +38,16 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Work
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,11 +59,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sakuku.R
+import com.example.sakuku.ui.components.SakukuOutlinedField
 import com.example.sakuku.ui.theme.BgBottom
 import com.example.sakuku.ui.theme.BlobDark
 import com.example.sakuku.ui.theme.BlobMid
@@ -67,18 +73,19 @@ import com.example.sakuku.ui.theme.PlusJakartaSans
 import com.example.sakuku.ui.theme.SakukuTheme
 import com.example.sakuku.ui.theme.Teal900
 import com.example.sakuku.ui.theme.sakukuBlobBackground
+import com.example.sakuku.ui.theme.TIER_LEVEL_COUNT
+import com.example.sakuku.ui.theme.tierStyleOf
 import com.example.sakuku.util.LoanCalculator
 
 private val GlassFill = Color.White.copy(alpha = 0.05f)
 private val GlassBorder = Color.White.copy(alpha = 0.12f)
 private val DangerColor = Color(0xFFF28FA0)
 
-// Overview Profil - sengaja dibikin bentuk menu (avatar+kartu limit+list section), BUKAN
-// form panjang - form-nya sendiri dipindah ke EditDataDiriScreen (dibuka lewat menu
-// "Data Pribadi"), biar halaman ini tetap scannable dan gak "pusing lihatnya" (permintaan user).
 @Composable
 fun ProfilScreen(
     onNavigateToKtpDataDiri: () -> Unit = {},
+    onNavigateToKontak: () -> Unit = {},
+    onNavigateToDataPekerjaan: () -> Unit = {},
     onNavigateToEditDataDiri: () -> Unit = {},
     onNavigateToKeamanan: () -> Unit = {},
     onNavigateToRekeningBank: () -> Unit = {},
@@ -88,6 +95,7 @@ fun ProfilScreen(
 ) {
 
     val uiState by viewModel.uiState.collectAsState()
+    LaunchedEffect(Unit) { viewModel.refreshIfLoaded() }
 
     LaunchedEffect(uiState.loggedOut) {
         if (uiState.loggedOut) onLoggedOut()
@@ -96,6 +104,8 @@ fun ProfilScreen(
     ProfilScreenContent(
         uiState = uiState,
         onNavigateToKtpDataDiri = onNavigateToKtpDataDiri,
+        onNavigateToKontak = onNavigateToKontak,
+        onNavigateToDataPekerjaan = onNavigateToDataPekerjaan,
         onNavigateToEditDataDiri = onNavigateToEditDataDiri,
         onNavigateToKeamanan = onNavigateToKeamanan,
         onNavigateToRekeningBank = onNavigateToRekeningBank,
@@ -108,6 +118,8 @@ fun ProfilScreen(
 private fun ProfilScreenContent(
     uiState: ProfilUiState,
     onNavigateToKtpDataDiri: () -> Unit,
+    onNavigateToKontak: () -> Unit,
+    onNavigateToDataPekerjaan: () -> Unit,
     onNavigateToEditDataDiri: () -> Unit,
     onNavigateToKeamanan: () -> Unit,
     onNavigateToRekeningBank: () -> Unit,
@@ -121,113 +133,170 @@ private fun ProfilScreenContent(
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
             .padding(top = 24.dp, bottom = 16.dp)
-    )
-    {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    ) {
+        if (uiState.isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = BlobDark)
+            }
+            return@Box
+        }
+
+        Column(modifier = Modifier.fillMaxSize()) {
             Text(
                 text = "Profil Pengguna",
                 color = Color.White,
                 fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
-                modifier = Modifier.weight(1f).padding(bottom= 24.dp)
+                modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = BlobDark)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 8.dp, bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                TierIdentityCard(
+                    name = uiState.namaLengkap.ifBlank { "Pengguna" },
+                    nik = uiState.nik,
+                    tier = uiState.tierPlafond ?: "Bronze",
+                    plafond = uiState.plafond
+                )
+
+                if (uiState.errorMessage != null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(DangerColor.copy(alpha = 0.12f))
+                            .padding(14.dp)
+                    ) {
+                        Text(uiState.errorMessage, color = DangerColor, fontFamily = PlusJakartaSans, fontSize = 12.5.sp)
+                    }
                 }
-                return@Box
-            }
-        }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(top = 32.dp, bottom = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            TierIdentityCard(
-                name = uiState.namaLengkap.ifBlank { "Pengguna" },
-                nik = uiState.nik,
-                tier = uiState.tierPlafond ?: "Bronze",
-                plafond = uiState.plafond
-            )
+                SisaPlafondRow(sisaPlafond = uiState.sisaPlafond?.let { LoanCalculator.formatRupiah(it) } ?: "-")
 
-            if (uiState.errorMessage != null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(DangerColor.copy(alpha = 0.12f))
-                        .padding(14.dp)
-                ) {
-                    Text(uiState.errorMessage, color = DangerColor, fontFamily = PlusJakartaSans, fontSize = 12.5.sp)
+                MenuSection(title = "Data Pribadi (e-KYC)") {
+                    ProfileMenuItem(
+                        icon = Icons.Rounded.Badge,
+                        title = "KTP & Data Diri",
+                        subtitle = maskedNik(uiState.nik),
+                        onClick = onNavigateToKtpDataDiri
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Rounded.Phone,
+                        title = "Kontak",
+                        subtitle = uiState.email.ifBlank { "Belum diisi" },
+                        onClick = onNavigateToKontak
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Rounded.Work,
+                        title = "Data Pekerjaan",
+                        subtitle = uiState.pekerjaan.ifBlank { "Belum diisi" },
+                        onClick = onNavigateToDataPekerjaan
+                    )
                 }
-            }
 
-            SisaPlafondRow(sisaPlafond = uiState.sisaPlafond?.let { LoanCalculator.formatRupiah(it) } ?: "-")
+                MenuSection(title = "Pengaturan Akun") {
+                    ProfileMenuItem(
+                        icon = Icons.Rounded.Lock,
+                        title = "Keamanan Akun",
+                        subtitle = "Ganti Password",
+                        onClick = onNavigateToKeamanan
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Rounded.AccountBalance,
+                        title = "Rekening Bank",
+                        subtitle = "Untuk pencairan dana",
+                        onClick = onNavigateToRekeningBank
+                    )
+                }
 
-            MenuSection(title = "Data Pribadi (e-KYC)") {
-                ProfileMenuItem(
-                    icon = Icons.Rounded.Badge,
-                    title = "KTP & Data Diri",
-                    subtitle = maskedNik(uiState.nik),
-                    onClick = onNavigateToKtpDataDiri
-                )
-                ProfileMenuItem(
-                    icon = Icons.Rounded.Phone,
-                    title = "Kontak",
-                    subtitle = uiState.email.ifBlank { "Belum diisi" },
-                    onClick = onNavigateToEditDataDiri
-                )
-                ProfileMenuItem(
-                    icon = Icons.Rounded.Work,
-                    title = "Data Pekerjaan",
-                    subtitle = uiState.pekerjaan.ifBlank { "Belum diisi" },
-                    onClick = onNavigateToEditDataDiri
-                )
-            }
-
-            MenuSection(title = "Pengaturan Akun") {
-                ProfileMenuItem(
-                    icon = Icons.Rounded.Lock,
-                    title = "Keamanan Akun",
-                    subtitle = "Ganti Password",
-                    onClick = onNavigateToKeamanan
-                )
-                ProfileMenuItem(
-                    icon = Icons.Rounded.AccountBalance,
-                    title = "Rekening Bank",
-                    subtitle = "Untuk pencairan dana",
-                    onClick = onNavigateToRekeningBank
-                )
-            }
-
-            MenuSection(title = "Lainnya") {
-                ProfileMenuItem(
-                    icon = Icons.Rounded.HelpOutline,
-                    title = "Pusat Bantuan (FAQ)",
-                    onClick = onNavigateToBantuan
-                )
-                ProfileMenuItem(
-                    icon = Icons.Rounded.Description,
-                    title = "Syarat & Ketentuan",
-                    onClick = onNavigateToBantuan
-                )
-                ProfileMenuItem(
-                    icon = Icons.AutoMirrored.Rounded.ExitToApp,
-                    title = "Keluar",
-                    titleColor = DangerColor,
-                    iconTint = DangerColor,
-                    showChevron = false,
-                    onClick = onLogout
-                )
+                MenuSection(title = "Lainnya") {
+                    ProfileMenuItem(
+                        icon = Icons.Rounded.HelpOutline,
+                        title = "Pusat Bantuan (FAQ)",
+                        onClick = onNavigateToBantuan
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Rounded.Description,
+                        title = "Syarat & Ketentuan",
+                        onClick = onNavigateToBantuan
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.AutoMirrored.Rounded.ExitToApp,
+                        title = "Keluar",
+                        titleColor = DangerColor,
+                        iconTint = DangerColor,
+                        showChevron = false,
+                        onClick = onLogout
+                    )
+                }
             }
         }
     }
+}
+
+// Konfirmasi password sebelum eksekusi - aksi ini gak bisa dibatalin (backend soft-delete +
+// scramble NIK/email/no_hp, lihat CustomerAuthService.deleteOwnAccount), jadi jangan cukup
+// modal "yakin?" doang tanpa re-auth. Sengaja BUKAN private - dipindah dipakainya ke
+// KeamananAkunScreen (17 Sept, section "Zona Berbahaya"), tapi komponennya tetap di sini biar
+// gak pindah-pindah file cuma buat 1 composable kecil.
+@Composable
+fun DeleteAccountDialog(
+    password: String,
+    isDeleting: Boolean,
+    errorMessage: String?,
+    onPasswordChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isDeleting) onDismiss() },
+        containerColor = Teal900,
+        title = {
+            Text("Hapus Akun?", color = Color.White, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Akun dan semua data kamu bakal gak bisa dipakai lagi. Masukkan password buat konfirmasi.",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 12.5.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                SakukuOutlinedField(
+                    value = password,
+                    onValueChange = onPasswordChange,
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(errorMessage, color = DangerColor, fontFamily = PlusJakartaSans, fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !isDeleting) {
+                if (isDeleting) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = DangerColor, strokeWidth = 2.dp)
+                } else {
+                    Text("Hapus Akun", color = DangerColor, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isDeleting) {
+                Text("Batal", color = Color.White.copy(alpha = 0.6f), fontFamily = PlusJakartaSans)
+            }
+        }
+    )
 }
 
 private fun maskedNik(nik: String): String {
@@ -235,15 +304,11 @@ private fun maskedNik(nik: String): String {
     return "•••• •••• ${nik.takeLast(4)}"
 }
 
-// --- KOMPONEN PENDUKUNG ---
-
-// Kartu identitas gaya "kartu member" - nama + NIK ter-mask + tier + limit dalam 1 kartu,
-// niru referensi Figma user (background hijau tua gradasi + motif batik/koi). Motif asli
-// belum ada asetnya, jadi background-nya sementara pakai gradasi + pola lingkaran hasil
-// Canvas (CardMotifOverlay) - begitu ada PNG/SVG koi dari Figma, tinggal ganti jadi
-// Image(painterResource(...)) di posisi CardMotifOverlay tanpa ubah layout lain.
 @Composable
 private fun TierIdentityCard(name: String, nik: String, tier: String, plafond: Double?) {
+    // Tiap tier punya gradient + warna accent sendiri (lihat ui/theme/TierStyle.kt), biar
+    // Bronze/Silver/Gold/Platinum kebedain sekilas. Watermark koi tetap sama di semua tier.
+    val style = tierStyleOf(tier)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -251,14 +316,14 @@ private fun TierIdentityCard(name: String, nik: String, tier: String, plafond: D
             .clip(RoundedCornerShape(22.dp))
             .background(
                 Brush.linearGradient(
-                    colors = listOf(BgBottom, Teal900, BlobMid.copy(alpha = 0.35f)),
+                    colors = style.gradient,
                     start = Offset(0f, 0f),
                     end = Offset(1000f, 1000f)
                 )
             )
-            .border(1.dp, GlassBorder, RoundedCornerShape(22.dp))
+            .border(1.dp, style.accent.copy(alpha = 0.45f), RoundedCornerShape(22.dp))
     ) {
-        CardMotifOverlay(modifier = Modifier.matchParentSize())
+        CardMotifOverlay(accent = style.accent, modifier = Modifier.matchParentSize())
 
         Column(
             modifier = Modifier
@@ -266,26 +331,64 @@ private fun TierIdentityCard(name: String, nik: String, tier: String, plafond: D
                 .padding(20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = name,
+                        color = Color.White,
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Bold,
+                        fontStyle = FontStyle.Italic,
+                        fontSize = 17.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = maskedNik(nik),
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontFamily = PlusJakartaSans,
+                        fontStyle = FontStyle.Italic,
+                        fontSize = 14.sp
+                    )
+                }
                 Text(
-                    text = name,
-                    color = Color.White,
+                    text = tier.uppercase(),
+                    color = style.accent,
                     fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold,
-                    fontStyle = FontStyle.Italic,
-                    fontSize = 17.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = maskedNik(nik),
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontFamily = PlusJakartaSans,
-                    fontStyle = FontStyle.Italic,
-                    fontSize = 14.sp
+                    fontSize = 11.sp,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color.Black.copy(alpha = 0.25f))
+                        .border(1.dp, style.accent.copy(alpha = 0.6f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Posisi tier dari 4 level (Bronze = 1 ... Platinum = 4) - biar user langsung
+                // lihat masih ada tier di atasnya.
+                if (style.level > 0) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        repeat(TIER_LEVEL_COUNT) { i ->
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 18.dp, height = 4.dp)
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(
+                                        if (i < style.level) style.accent
+                                        else Color.White.copy(alpha = 0.18f)
+                                    )
+                            )
+                        }
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "${tier.replaceFirstChar { it.uppercase() }} tier",
@@ -297,7 +400,7 @@ private fun TierIdentityCard(name: String, nik: String, tier: String, plafond: D
                     )
                     Text(
                         text = "limit hingga ${plafond?.let { LoanCalculator.formatRupiah(it) } ?: "-"}",
-                        color = Color.White.copy(alpha = 0.65f),
+                        color = Color.White.copy(alpha = 0.7f),
                         fontFamily = PlusJakartaSans,
                         fontStyle = FontStyle.Italic,
                         fontSize = 11.sp
@@ -309,10 +412,9 @@ private fun TierIdentityCard(name: String, nik: String, tier: String, plafond: D
 }
 
 @Composable
-private fun CardMotifOverlay(modifier: Modifier = Modifier) {
+private fun CardMotifOverlay(accent: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
-        val ringColor = Color.White.copy(alpha = 0.06f)
-        // Beberapa lingkaran konsentris di kiri-atas, niru kesan motif batik/koi tanpa aset asli.
+        val ringColor = accent.copy(alpha = 0.10f)
         repeat(3) { i ->
             drawCircle(
                 color = ringColor,
@@ -322,7 +424,7 @@ private fun CardMotifOverlay(modifier: Modifier = Modifier) {
             )
         }
         drawCircle(
-            color = BlobMid.copy(alpha = 0.18f),
+            color = accent.copy(alpha = 0.18f),
             radius = size.minDimension * 0.55f,
             center = Offset(size.width * 0.95f, size.height * 1.05f)
         )
@@ -331,7 +433,7 @@ private fun CardMotifOverlay(modifier: Modifier = Modifier) {
         painter = painterResource(id = R.drawable.koi_line),
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        alpha = 0.15f,
+        alpha = 0.30f,
         modifier = Modifier
             .fillMaxSize()
             .offset(x=(-30).dp, y = 10.dp)
@@ -432,11 +534,30 @@ private fun ProfilScreenPreview() {
                 tierPlafond = "Bronze"
             ),
             onNavigateToKtpDataDiri = {},
+            onNavigateToKontak = {},
+            onNavigateToDataPekerjaan = {},
             onNavigateToEditDataDiri = {},
             onNavigateToKeamanan = {},
             onNavigateToRekeningBank = {},
             onNavigateToBantuan = {},
             onLogout = {}
         )
+    }
+}
+
+// Bandingin keempat tier e-card sekaligus di panel Preview Android Studio.
+@Preview(showBackground = true, backgroundColor = 0xFF0A1614, heightDp = 820)
+@Composable
+private fun TierIdentityCardAllTiersPreview() {
+    SakukuTheme {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            TierIdentityCard("Novita Sari", "3201123456789012", "Bronze", 4_000_000.0)
+            TierIdentityCard("Novita Sari", "3201123456789012", "Silver", 9_000_000.0)
+            TierIdentityCard("Novita Sari", "3201123456789012", "Gold", 15_000_000.0)
+            TierIdentityCard("Novita Sari", "3201123456789012", "Platinum", 42_000_000.0)
+        }
     }
 }

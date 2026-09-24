@@ -1,0 +1,92 @@
+{
+  "project_info": {
+    "project_number": "920936793608",
+    "project_id": "sakuku-kotlin-project",
+    "storage_bucket": "sakuku-kotlin-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:920936793608:android:b38dd0035ef242962df3bd",
+        "android_client_info": {
+          "package_name": "com.example.kotlintest"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "920936793608-mne6jp1apl6o3a2o7oe13nmo3jp510nj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.kotlintest",
+            "certificate_hash": "772a228a579af5df15d048de0ee01849fa4776c9"
+          }
+        },
+        {
+          "client_id": "920936793608-1rklm29bhndf9jnjpdt02q1me4640i2n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOsjSpMjuM9o_3OGT37g4sUgOnbYrVYR0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "920936793608-1rklm29bhndf9jnjpdt02q1me4640i2n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:920936793608:android:44a954b1c42d8c302df3bd",
+        "android_client_info": {
+          "package_name": "com.example.sakuku"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "920936793608-7u3a6sqlgnn7q84itkfq57f8qefh7lqa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sakuku",
+            "certificate_hash": "772a228a579af5df15d048de0ee01849fa4776c9"
+          }
+        },
+        {
+          "client_id": "920936793608-9d2r1ucn1214d1pal0v7mu577l7uq4ua.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sakuku",
+            "certificate_hash": "b3743753c6165fbd2076e56a75e25df666f5619b"
+          }
+        },
+        {
+          "client_id": "920936793608-1rklm29bhndf9jnjpdt02q1me4640i2n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOsjSpMjuM9o_3OGT37g4sUgOnbYrVYR0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "920936793608-1rklm29bhndf9jnjpdt02q1me4640i2n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

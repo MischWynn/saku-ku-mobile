@@ -1,5 +1,7 @@
 package com.example.sakuku.ui.screens.bayar
 
+import com.example.sakuku.ui.theme.screenTitleInset
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,8 +73,8 @@ private fun BayarScreenContent(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = ScreenPadding.Horizontal).padding(top = 8.dp)) {
+            Row(modifier = Modifier.screenTitleInset(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Kembali", tint = Color.White)
                 }
@@ -80,7 +82,6 @@ private fun BayarScreenContent(
                     text = "Tagihan",
                     color = Color.White,
                     fontFamily = PlusJakartaSans,
-                    fontStyle = FontStyle.Italic,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
                 )

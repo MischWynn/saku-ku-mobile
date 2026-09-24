@@ -1,5 +1,7 @@
 package com.example.sakuku.ui.screens.profil
 
+import com.example.sakuku.ui.theme.screenTitleInset
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -39,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sakuku.ui.components.FieldLabel
 import com.example.sakuku.ui.components.GradientButton
+import com.example.sakuku.ui.components.RupiahVisualTransformation
 import com.example.sakuku.ui.components.SakukuOutlinedField
 import com.example.sakuku.ui.components.SelectableChip
 import com.example.sakuku.ui.screens.register.TipePekerjaan
@@ -102,14 +105,14 @@ private fun EditDataDiriContent(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = ScreenPadding.Horizontal)
                 // bottom 120dp (bukan 32dp) - nyamain pola ProfilScreen.kt, floating
                 // AnimatedBottomNavBar butuh clearance segitu biar konten paling bawah gak
                 // ketutup nav bar-nya.
                 .padding(top = 24.dp, bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.screenTitleInset().fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -178,7 +181,12 @@ private fun EditDataDiriContent(
                 SakukuOutlinedField(value = uiState.pekerjaan, onValueChange = onPekerjaanChange, keyboardType = KeyboardType.Text)
 
                 FieldLabel("Pendapatan Bulanan")
-                SakukuOutlinedField(value = uiState.pendapatanBulanan, onValueChange = onPendapatanChange, keyboardType = KeyboardType.Number)
+                SakukuOutlinedField(
+                    value = uiState.pendapatanBulanan,
+                    onValueChange = onPendapatanChange,
+                    keyboardType = KeyboardType.Number,
+                    visualTransformation = RupiahVisualTransformation()
+                )
 
                 Text(
                     text = "Mengubah data ini belum otomatis mengubah plafond kamu.",

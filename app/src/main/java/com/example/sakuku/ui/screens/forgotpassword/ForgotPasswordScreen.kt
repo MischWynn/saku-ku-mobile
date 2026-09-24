@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.forgotpassword
 
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,7 +73,7 @@ private fun ForgotPasswordScreenContent(
             .sakukuBlobBackground()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = ScreenPadding.Horizontal)
             .navigationBarsPadding()
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -102,7 +103,6 @@ private fun ForgotPasswordScreenContent(
             text = "Lupa Password?",
             color = Color.White,
             fontFamily = PlusJakartaSans,
-            fontStyle = FontStyle.Italic,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp
         )

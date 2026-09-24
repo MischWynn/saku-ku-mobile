@@ -1,4 +1,4 @@
-package com.example.kotlintest.core.notification
+package com.example.sakuku.core.notification
 
 
 import android.Manifest
@@ -19,7 +19,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.TaskStackBuilder
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import com.example.kotlintest.R
+import com.example.sakuku.R
 import java.util.concurrent.atomic.AtomicInteger
 
 class AndroidAppNotifier(

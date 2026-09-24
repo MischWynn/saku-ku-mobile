@@ -1,5 +1,10 @@
 package com.example.sakuku.ui.screens.pengajuan
 
+import java.time.LocalDateTime
+import java.time.LocalDate
+import com.example.sakuku.data.remote.dto.PengajuanMeResponse
+import com.example.sakuku.util.LoanCalculator
+import com.example.sakuku.util.Validators
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sakuku.data.remote.dto.BungaTenorResponse
@@ -22,7 +27,15 @@ data class PengajuanUiState(
     val isLoading: Boolean = true,
     val plafond: Double? = null,
     val sisaPlafond: Double? = null,
+    val pekerjaan: String? = null,
     val pendapatanBulanan: Double? = null,
+    val tanggalLahir: String? = null,
+    val namaBank: String? = null,
+    val nomorRekening: String? = null,
+    val namaPemilikRekening: String? = null,
+    // Estimasi total cicilan/bulan dari pinjaman lain yang udah cair & tenornya belum habis -
+    // dipakai buat "total beban bulanan" di langkah 2 (flat rate, bukan data pembayaran asli).
+    val existingCicilanBulanan: Double = 0.0,
     val nominal: Double = 1_000_000.0,
     val tenors: List<BungaTenorResponse> = emptyList(),
     val selectedTenorId: String? = null,
@@ -44,6 +57,28 @@ data class PengajuanUiState(
     val belowMinimum: Boolean
         get() = sisaPlafond != null && sisaPlafond < MIN_NOMINAL
 
+    // pekerjaan/pendapatanBulanan opsional pas registrasi (Step 3 Android cuma wajibin
+    // tipePekerjaan) tapi backend (PengajuanService.create()) sekarang NOLAK submit kalau
+    // salah satunya kosong - dicek di sini juga biar UI kasih tau + arahin ke halaman lengkapi
+    // profil SEBELUM customer buang waktu ngisi slider/tenor yang ujungnya ditolak backend.
+    val employmentIncomplete: Boolean
+        get() = !isLoading && (pekerjaan.isNullOrBlank() || pendapatanBulanan == null)
+
+    // Tanggal lahir juga bagian dari "profil lengkap": kosong -> arahin ke KTP & Data Diri,
+    // udah diisi tapi umurnya < 17 tahun -> gak bisa ngajuin sama sekali (syarat KTP).
+    val tanggalLahirMissing: Boolean
+        get() = !isLoading && tanggalLahir.isNullOrBlank()
+
+    val underage: Boolean
+        get() = !isLoading && !tanggalLahir.isNullOrBlank() && !Validators.isOldEnough(tanggalLahir)
+
+    // Rekening wajib ada sebelum ngajuin - dana yang disetujui dicairin ke rekening ini.
+    val rekeningMissing: Boolean
+        get() = !isLoading && (namaBank.isNullOrBlank() || nomorRekening.isNullOrBlank() || namaPemilikRekening.isNullOrBlank())
+
+    val profileIncomplete: Boolean
+        get() = employmentIncomplete || tanggalLahirMissing || underage || rekeningMissing
+
     // Selisih plafond total vs sisa yang bisa dipakai sekarang - kalau > 0 berarti ada
     // pengajuan lain (masih direview atau udah cair) yang lagi "ketahan" makan jatah plafond.
     val heldAmount: Double?
@@ -62,6 +97,14 @@ data class PengajuanUiState(
         if (income <= 0) return null
         return cicilanBulanan / income
     }
+
+    // Estimasi cicilan/bulan buat tenor mana pun - dipakai kartu pilihan tenor (tiap kartu
+    // nampilin cicilannya sendiri) dan ringkasan di bar bawah.
+    fun cicilanFor(tenor: BungaTenorResponse): Double =
+        LoanCalculator.estimate(nominal, tenor.tenor, tenor.interestRate).cicilanBulanan
+
+    val canSubmitFromStep1: Boolean
+        get() = !isLoading && !profileIncomplete && !belowMinimum && canProceedToStep2
 }
 
 @HiltViewModel
@@ -75,15 +118,16 @@ class PengajuanViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
-        loadData()
+//        loadData()
     }
 
-    private fun loadData() {
+    fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
             val profileResult = customerRepository.getMe()
             val tenorResult = homeRepository.getBungaTenor()
+            val pengajuanResult = pengajuanRepository.getMyPengajuan()
 
             val profile = profileResult.getOrNull()
             val sisaPlafond = profile?.sisaPlafond
@@ -94,7 +138,15 @@ class PengajuanViewModel @Inject constructor(
                     isLoading = false,
                     plafond = profile?.plafond,
                     sisaPlafond = sisaPlafond,
+                    pekerjaan = profile?.pekerjaan,
                     pendapatanBulanan = profile?.pendapatanBulanan,
+                    tanggalLahir = profile?.tanggalLahir,
+                    namaBank = profile?.namaBank,
+                    nomorRekening = profile?.nomorRekening,
+                    namaPemilikRekening = profile?.namaPemilikRekening,
+                    // Gagal fetch riwayat -> anggap 0 (cuma bikin estimasi beban lebih rendah,
+                    // gak nge-block pengajuan).
+                    existingCicilanBulanan = activeCicilanBulanan(pengajuanResult.getOrDefault(emptyList())),
                     tenors = tenors,
                     selectedTenorId = tenors.firstOrNull()?.id,
                     // BUG: coerceIn(min, max) LEMPAR EXCEPTION (bukan clamp) kalau max < min -
@@ -119,6 +171,18 @@ class PengajuanViewModel @Inject constructor(
     }
 
     fun retry() = loadData()
+
+    // Pinjaman yang udah cair dan belum lewat tenornya. tanggalPencairan kosong (data lama)
+    // tetap dihitung - lebih aman melebihkan beban daripada nyembunyiin cicilan yang mungkin masih jalan.
+    private fun activeCicilanBulanan(list: List<PengajuanMeResponse>, today: LocalDate = LocalDate.now()): Double =
+        list.filter { it.status == "DISBURSED" }
+            .filter { loan ->
+                val cair = loan.tanggalPencairan?.let { runCatching { LocalDateTime.parse(it).toLocalDate() }.getOrNull() }
+                cair == null || !cair.plusMonths(loan.tenor.toLong()).isBefore(today)
+            }
+            .sumOf { loan ->
+                LoanCalculator.estimate(loan.nominalDisetujui ?: loan.nominalPengajuan, loan.tenor, loan.interestRate).cicilanBulanan
+            }
 
     fun onNominalChange(value: Double) {
         val max = _uiState.value.sisaPlafond ?: return

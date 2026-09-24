@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sakuku.ui.theme.BlobDark
 import com.example.sakuku.ui.theme.BlobMid
+import com.example.sakuku.ui.theme.ButtonPengajuanDeep
+import com.example.sakuku.ui.theme.ButtonPengajuanLight
 import com.example.sakuku.ui.theme.ButtonTurquoiseDeep
 import com.example.sakuku.ui.theme.ButtonTurquoiseLight
 import com.example.sakuku.ui.theme.PlusJakartaSans
@@ -38,6 +40,10 @@ import com.example.sakuku.ui.theme.PlusJakartaSans
 // Cyan-turquoise, samain kayak preview "Beranda & Cek Plafond" (13 Sept) - sengaja beda
 // warna dari BlobMid/BlobDark yang tetep dipakai buat checkbox/border field lainnya.
 val AuthButtonGradient = Brush.horizontalGradient(listOf(ButtonTurquoiseLight, ButtonTurquoiseDeep))
+
+// Versi redup AuthButtonGradient, khusus tombol "Ajukan Pinjaman"/"Ajukan Sekarang" - lihat
+// catatan di ButtonPengajuanLight/Deep (Color.kt).
+val PengajuanButtonGradient = Brush.horizontalGradient(listOf(ButtonPengajuanLight, ButtonPengajuanDeep))
 
 @Composable
 fun FieldLabel(text: String) {
@@ -61,6 +67,7 @@ fun SakukuOutlinedField(
     leadingIcon: @Composable (() -> Unit)? = null,
     singleLine: Boolean = true,
     readOnly: Boolean = false,
+    placeholder: String? = null,
     modifier: Modifier = Modifier
 ) {
     OutlinedTextField(
@@ -71,6 +78,7 @@ fun SakukuOutlinedField(
         visualTransformation = visualTransformation,
         trailingIcon = trailingIcon,
         leadingIcon = leadingIcon,
+        placeholder = placeholder?.let { { Text(it, color = Color.White.copy(alpha = 0.35f), fontFamily = PlusJakartaSans) } },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         shape = RoundedCornerShape(14.dp),
         colors = OutlinedTextFieldDefaults.colors(
@@ -105,7 +113,8 @@ fun GradientButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    isLoading: Boolean = false
+    isLoading: Boolean = false,
+    gradient: Brush = AuthButtonGradient
 ) {
     Button(
         onClick = onClick,
@@ -116,7 +125,7 @@ fun GradientButton(
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
-            .background(brush = AuthButtonGradient, shape = RoundedCornerShape(16.dp))
+            .background(brush = gradient, shape = RoundedCornerShape(16.dp))
     ) {
         if (isLoading) {
             CircularProgressIndicator(
