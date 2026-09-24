@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 // properties dari java.util
@@ -26,6 +27,7 @@ android {
     compileSdk {
         version = release(37)
     }
+    compileSdkMinor = 2
 
     defaultConfig {
         applicationId = "com.example.sakuku"
@@ -111,6 +113,23 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.datastore.preferences)
+
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.auth)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    // Google Sign-In - modern Credential Manager flow, not the deprecated GoogleSignInClient API.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+
+    implementation("dev.chrisbanes.haze:haze:2.0.0-beta03")
+    implementation("dev.chrisbanes.haze:haze-blur:2.0.0-beta03")
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

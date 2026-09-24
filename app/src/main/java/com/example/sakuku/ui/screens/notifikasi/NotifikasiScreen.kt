@@ -1,5 +1,11 @@
 package com.example.sakuku.ui.screens.notifikasi
 
+import com.example.sakuku.ui.theme.sakukuBlobBackgroundTop
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.IconButton
+import com.example.sakuku.ui.theme.screenTitleInset
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +32,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -44,6 +51,7 @@ import com.example.sakuku.ui.theme.BlobDark
 import com.example.sakuku.ui.theme.PlusJakartaSans
 import com.example.sakuku.ui.theme.sakukuBlobBackground
 import com.example.sakuku.ui.theme.SakukuTheme
+import com.example.sakuku.util.LoanCalculator
 
 private val GlassFill = Color.White.copy(alpha = 0.05f)
 private val GlassBorder = Color.White.copy(alpha = 0.12f)
@@ -54,35 +62,70 @@ private val Rose = Color(0xFFF28FA0)
 private val Emerald = Color(0xFF5FE3AB)
 
 @Composable
-fun NotifikasiScreen(viewModel: NotifikasiViewModel = hiltViewModel()) {
+fun NotifikasiScreen(
+    onBack: () -> Unit = {},
+    onOpenDisbursement: (notificationId: String) -> Unit = {},
+    onOpenStatus: (pengajuanId: String) -> Unit = {},
+    viewModel: NotifikasiViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
-    NotifikasiScreenContent(uiState = uiState, onRetry = viewModel::load, onItemClick = viewModel::markAsRead)
+
+    // ViewModel cuma fetch sekali di init{} - tanpa ini, notifikasi baru yang dateng SETELAH
+    // pertama kali buka tab ini gak pernah nongol sampai app di-kill+buka ulang (walau push
+    // FCM-nya sendiri udah kebukti nyampe, row tbl_notifikasi-nya udah ada, cuma list di layar
+    // ini yang gak ke-refresh). LaunchedEffect(Unit) refire tiap composable ini masuk komposisi
+    // lagi (tiap kali tab Notifikasi dibuka), regardless ViewModel-nya reused/baru.
+    LaunchedEffect(Unit) {
+        viewModel.load()
+    }
+
+    NotifikasiScreenContent(
+        uiState = uiState,
+        onBack = onBack,
+        onRetry = viewModel::load,
+        onItemClick = { item ->
+            viewModel.markAsRead(item.id)
+            // Pengajuan yang udah cair -> Detail Pencairan. Masih diproses / ditolak -> Detail
+            // Status Pengajuan (ada timeline + alasan ditolak). Notifikasi tanpa pengajuan cuma
+            // ditandai terbaca.
+            val pengajuan = item.pengajuan
+            when {
+                pengajuan == null -> Unit
+                pengajuan.status == "DISBURSED" -> onOpenDisbursement(item.id)
+                else -> onOpenStatus(pengajuan.id)
+            }
+        }
+    )
 }
 
 @Composable
 private fun NotifikasiScreenContent(
     uiState: NotifikasiUiState,
+    onBack: () -> Unit,
     onRetry: () -> Unit,
-    onItemClick: (String) -> Unit
+    onItemClick: (NotificationResponse) -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .sakukuBlobBackground()
+            .sakukuBlobBackgroundTop()
             .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp)
-                .padding(top = 24.dp)
+                .padding(horizontal = ScreenPadding.Horizontal)
+                .padding(top = 8.dp)
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            // Sekarang dibuka dari ikon lonceng di Beranda (bukan tab navbar lagi) - butuh tombol kembali.
+            Row(modifier = Modifier.screenTitleInset().fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+                }
                 Text(
                     text = "Notifikasi",
                     color = Color.White,
                     fontFamily = PlusJakartaSans,
-                    fontStyle = FontStyle.Italic,
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp,
                     modifier = Modifier.weight(1f)
@@ -142,7 +185,7 @@ private fun NotifikasiScreenContent(
                 else -> {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(uiState.items) { item ->
-                            NotifikasiCard(item, onClick = { onItemClick(item.id) })
+                            NotifikasiCard(item, onClick = { onItemClick(item) })
                         }
                     }
                 }
@@ -200,12 +243,22 @@ private fun NotifikasiCard(item: NotificationResponse, onClick: () -> Unit) {
                 fontSize = 11.5.sp,
                 lineHeight = 16.sp
             )
-            Text(
-                text = formatTanggal(item.createdAt),
-                color = Color.White.copy(alpha = 0.35f),
-                fontFamily = PlusJakartaSans,
-                fontSize = 10.sp
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = formatTanggal(item.createdAt),
+                    color = Color.White.copy(alpha = 0.35f),
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 10.sp
+                )
+                item.pengajuan?.let { ref ->
+                    Text(
+                        text = LoanCalculator.formatPengajuanRef(ref.id),
+                        color = Color.White.copy(alpha = 0.35f),
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 10.sp
+                    )
+                }
+            }
         }
     }
 }
@@ -234,6 +287,7 @@ private fun NotifikasiScreenPreview() {
                     NotificationResponse("3", "Pengajuan Ditolak oleh Branch Manager", "Pengajuan anda telah ditolak. Silakan periksa catatan untuk informasi lebih lanjut.", true, "2026-09-10T09:00:00")
                 )
             ),
+            onBack = {},
             onRetry = {},
             onItemClick = {}
         )

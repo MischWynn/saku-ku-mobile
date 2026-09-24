@@ -81,7 +81,10 @@ fun EditableNominalField(
     )
 }
 
-private class RupiahVisualTransformation : VisualTransformation {
+// Bukan private lagi - dipakai juga sebagai `visualTransformation` param di SakukuOutlinedField
+// buat field pendapatan bulanan (Register/DataPekerjaan/EditDataDiri), biar angka yang diketik
+// nampil "Rp1.000.000" bukan "1000000" mentah, konsisten sama slider nominal pinjaman di Home.
+class RupiahVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val original = text.text
         val sb = StringBuilder("Rp")

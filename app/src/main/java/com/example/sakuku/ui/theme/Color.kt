@@ -15,6 +15,14 @@ val BlobDark = Color(0xFF10B981)
 val ButtonTurquoiseLight = Color(0xFF10B981)
 val ButtonTurquoiseDeep = Color(0xFF22D3EE)
 
+// Versi lebih redup dari gradient di atas - dipakai khusus buat tombol Ajukan Pinjaman
+// (Home/Riwayat/Ajukan Pinjaman step 2), sengaja gak nyenggol ButtonTurquoise* yang masih
+// dipakai tombol Login/Register (auth) - permintaan user 18 Sept, tombol pengajuan kerasa
+// "terlalu bright". Sama family hue-nya, cuma digeser lebih gelap/kurang neon (mirip Tailwind
+// 500/400 -> 600/700).
+val ButtonPengajuanLight = Color(0xFF0D9488)
+val ButtonPengajuanDeep = Color(0xFF0E7490)
+
 // Diambil dari referensi KotlinTest (res/drawable/bg_gradient_dark.xml)
 val Teal900 = Color(0xFF004D40)
 val OverlayDark50 = Color(0x80000000)

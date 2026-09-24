@@ -12,16 +12,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// Verifikasi ini dipakai bareng buat 2 alur berbeda - lihat catatan di submit()/resend() soal
-// bedanya masing-masing mode manggil endpoint apa.
-enum class OtpMode { REGISTRATION, RESET_PASSWORD }
-
+// Dulu dipakai bareng buat 2 alur (registrasi + reset-password) lewat OtpMode - sejak Register
+// direstrukturisasi 17 Sept jadi 4 step (OTP registrasi sekarang punya UI+state sendiri di
+// RegisterScreen/RegisterViewModel, gak navigate ke sini lagi), layar ini murni buat alur
+// Lupa Password aja. Disederhanain, gak perlu enum mode lagi.
 private const val CODE_LENGTH = 6
 private const val RESEND_COOLDOWN_SECONDS = 30
 
 data class OtpUiState(
     val email: String = "",
-    val mode: OtpMode = OtpMode.REGISTRATION,
     val code: String = "",
     val isSubmitting: Boolean = false,
     val isResending: Boolean = false,
@@ -44,12 +43,12 @@ class OtpViewModel @Inject constructor(
     private var cooldownJob: Job? = null
     private var initialized = false
 
-    // Dipanggil dari LaunchedEffect(email, mode) di Screen - guard `initialized` biar
-    // recomposition gak restart cooldown timer dari awal terus-terusan.
-    fun init(email: String, mode: OtpMode) {
+    // Dipanggil dari LaunchedEffect(email) di Screen - guard `initialized` biar recomposition
+    // gak restart cooldown timer dari awal terus-terusan.
+    fun init(email: String) {
         if (initialized) return
         initialized = true
-        _uiState.update { it.copy(email = email, mode = mode) }
+        _uiState.update { it.copy(email = email) }
         startCooldown()
     }
 
@@ -59,30 +58,22 @@ class OtpViewModel @Inject constructor(
         }
     }
 
+    // Cek beneran lewat customer/verify-reset-otp (cek doang, gak konsumsi kode) - gak bisa
+    // lanjut ke Ganti Password pakai kode asal 6 digit. Konsumsi kode yang sebenarnya (ditandai
+    // used) tetap kejadian sekali pas POST /customer/reset-password di-submit nanti.
     fun submit() {
         val state = _uiState.value
         if (state.code.length != CODE_LENGTH) return
 
-        when (state.mode) {
-            OtpMode.REGISTRATION -> {
-                viewModelScope.launch {
-                    _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
-                    authRepository.verifyOtp(state.email, state.code)
-                        .onSuccess { _uiState.update { it.copy(isSubmitting = false, verified = true) } }
-                        .onFailure { e ->
-                            _uiState.update {
-                                it.copy(isSubmitting = false, errorMessage = e.message ?: "Kode OTP salah atau sudah kedaluwarsa")
-                            }
-                        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
+            authRepository.verifyResetOtp(state.email, state.code)
+                .onSuccess { _uiState.update { it.copy(isSubmitting = false, verified = true) } }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(isSubmitting = false, errorMessage = e.message ?: "Kode OTP salah atau sudah kedaluwarsa")
+                    }
                 }
-            }
-            OtpMode.RESET_PASSWORD -> {
-                // Backend gak punya endpoint verify-only buat alur reset password - kode ini
-                // baru divalidasi beneran pas POST /customer/reset-password (layar Ganti
-                // Password berikutnya, yang ngirim email+code+newPassword sekaligus). Di sini
-                // cuma mastiin 6 digit udah keisi, terus lanjut bawa kode-nya ke sana.
-                _uiState.update { it.copy(verified = true) }
-            }
         }
     }
 
@@ -92,13 +83,9 @@ class OtpViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isResending = true, errorMessage = null, infoMessage = null) }
-            val result = when (state.mode) {
-                OtpMode.REGISTRATION -> authRepository.resendOtp(state.email)
-                // Gak ada endpoint resend terpisah buat reset password - forgot-password
-                // sendiri yang generate+kirim kode baru tiap dipanggil ulang.
-                OtpMode.RESET_PASSWORD -> authRepository.forgotPassword(state.email)
-            }
-            result
+            // Gak ada endpoint resend terpisah buat reset password - forgot-password sendiri
+            // yang generate+kirim kode baru tiap dipanggil ulang.
+            authRepository.forgotPassword(state.email)
                 .onSuccess {
                     _uiState.update { it.copy(isResending = false, infoMessage = "Kode OTP baru sudah dikirim") }
                     startCooldown()

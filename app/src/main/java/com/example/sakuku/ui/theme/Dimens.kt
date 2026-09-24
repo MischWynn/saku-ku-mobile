@@ -1,5 +1,8 @@
 package com.example.sakuku.ui.theme
 
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // Skala ukuran teks niru Tailwind (text-xs..text-9xl), 1rem dipetain ke 16sp - biar gak ada lagi
@@ -35,4 +38,27 @@ object TextLineHeight {
     val xl7 = 72.sp
     val xl8 = 96.sp
     val xl9 = 128.sp
+}
+
+// Gap tepi layar standar - disamain ke ProfilScreen: judul/header di 20dp dari tepi, konten
+// (kartu, form, list) di 40dp. Container utama tiap screen pakai `Horizontal`, lalu header-nya
+// ditarik keluar ke `Title` lewat Modifier.screenTitleInset().
+object ScreenPadding {
+    val Title = 20.dp
+    val Horizontal = 40.dp
+}
+
+// Lebarin elemen (judul/header row) ke kiri & kanan sebesar selisih Horizontal - Title, biar
+// posisinya balik ke 20dp dari tepi walau parent-nya udah di-padding 40dp.
+fun Modifier.screenTitleInset(): Modifier = layout { measurable, constraints ->
+    val bleed = (ScreenPadding.Horizontal - ScreenPadding.Title).roundToPx()
+    val widened = if (constraints.hasBoundedWidth) {
+        constraints.copy(
+            minWidth = constraints.minWidth + bleed * 2,
+            maxWidth = constraints.maxWidth + bleed * 2
+        )
+    } else constraints
+    val placeable = measurable.measure(widened)
+    val width = (placeable.width - bleed * 2).coerceIn(constraints.minWidth, constraints.maxWidth)
+    layout(width, placeable.height) { placeable.place(-bleed, 0) }
 }

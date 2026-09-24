@@ -1,5 +1,9 @@
 package com.example.sakuku.ui.screens.riwayat.detail
 
+import com.example.sakuku.ui.theme.sakukuBlobBackgroundTop
+import com.example.sakuku.ui.components.PengajuanStepper
+import com.example.sakuku.ui.theme.screenTitleInset
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -78,7 +82,7 @@ private fun StatusPinjamanDetailScreenContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .sakukuBlobBackground()
+            .sakukuBlobBackgroundTop()
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -86,10 +90,10 @@ private fun StatusPinjamanDetailScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = ScreenPadding.Horizontal)
                 .padding(bottom = 32.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.screenTitleInset(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Kembali", tint = Color.White)
                 }
@@ -97,7 +101,6 @@ private fun StatusPinjamanDetailScreenContent(
                     text = "Detail Pengajuan",
                     color = Color.White,
                     fontFamily = PlusJakartaSans,
-                    fontStyle = FontStyle.Italic,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
                 )
@@ -134,6 +137,24 @@ private fun StatusPinjamanDetailScreenContent(
                 uiState.item != null -> {
                     val item = uiState.item
                     SummaryCard(item)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(GlassFill)
+                            .padding(18.dp)
+                    ) {
+                        Text(
+                            text = "Tahap Pengajuan",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        PengajuanStepper(status = item.status)
+                    }
 
                     uiState.rejectionReason?.let { reason ->
                         Spacer(modifier = Modifier.height(16.dp))
@@ -178,13 +199,21 @@ private fun SummaryCard(item: PengajuanMeResponse) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = LoanCalculator.formatRupiah(item.nominalDisetujui ?: item.nominalPengajuan),
-                color = Color.White,
-                fontFamily = PlusJakartaSans,
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp
-            )
+            Column {
+                Text(
+                    text = LoanCalculator.formatRupiah(item.nominalDisetujui ?: item.nominalPengajuan),
+                    color = Color.White,
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+                Text(
+                    text = "No. Pengajuan ${LoanCalculator.formatPengajuanRef(item.id)}",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 11.sp
+                )
+            }
             StatusBadge(item.status)
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

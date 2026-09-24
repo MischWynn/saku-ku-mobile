@@ -28,10 +28,9 @@ class NotifikasiViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NotifikasiUiState())
     val uiState = _uiState.asStateFlow()
 
-    init {
-        load()
-    }
-
+    // Sengaja gak load() di init{} - NotifikasiScreen yang manggil lewat LaunchedEffect(Unit),
+    // biar ke-refresh tiap kali tab ini dibuka (bukan cuma sekali pas ViewModel pertama
+    // dibikin), tanpa fetch dobel di kunjungan pertama.
     fun load() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }

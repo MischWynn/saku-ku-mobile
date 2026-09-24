@@ -15,31 +15,38 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sakuku.ui.theme.*
 
 @Composable
 fun SplashScreen(
-    onNavigate: () -> Unit,
-    viewModel: SplashViewModel = viewModel()
+    onNavigate: (loggedIn: Boolean) -> Unit,
+    onRootedDetected: () -> Unit,
+    viewModel: SplashViewModel = hiltViewModel()
 ) {
     val showSubtitle by viewModel.showSubtitle.collectAsState()
     val navigateToNext by viewModel.navigateToNext.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val isRooted by viewModel.isRooted.collectAsState()
 
-    LaunchedEffect(navigateToNext) {
-        if (navigateToNext) onNavigate()
+    LaunchedEffect(navigateToNext, isLoggedIn, isRooted) {
+        if (navigateToNext) {
+            if (isRooted) {
+                onRootedDetected()
+            } else {
+                isLoggedIn?.let { onNavigate(it) }
+            }
+        }
     }
 
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // Lapisan Background & Blob
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
 
-            // 1. Background Vertikal Gradient
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(BgTop, BgBottom),
@@ -48,7 +55,6 @@ fun SplashScreen(
                 )
             )
 
-            // 2. Blob Kiri Bawah / Tengah (Mensimulasikan tekstur kasar)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -78,7 +84,6 @@ fun SplashScreen(
             )
         }
 
-        // Lapisan Tipografi
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

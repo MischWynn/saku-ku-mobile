@@ -14,7 +14,8 @@ import javax.inject.Inject
 data class PlafondUiState(
     val isLoading: Boolean = true,
     val tiers: List<PlafondResponse> = emptyList(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isLoggedIn: Boolean = false,
 )
 
 @HiltViewModel

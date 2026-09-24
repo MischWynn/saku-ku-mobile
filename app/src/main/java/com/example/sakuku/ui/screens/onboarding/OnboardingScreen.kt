@@ -47,12 +47,14 @@ private data class OnboardingPage(
 
 private val onboardingPages = listOf(
     OnboardingPage(R.drawable.plane_flying, "Temukan dana daruratmu"),
-    OnboardingPage(R.drawable.journey, "Dimanapun Kapanpun")
+    OnboardingPage(R.drawable.journey, "Dimanapun Kapanpun"),
+    OnboardingPage(R.drawable.community, "Yuk, Jadi Bagian dari Saku-ku")
 )
 
 @Composable
 fun OnboardingScreen(
     onSkip: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     onNavigateToRegister: () -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { onboardingPages.size })
@@ -131,13 +133,16 @@ fun OnboardingScreen(
             )
 
             if (isLastPage) {
+                // Dulu langsung "Register" - sekarang CTA utama "Masuk" (user yang udah punya
+                // akun didahuluin), Daftar jadi link sekunder di bawah (pola sama kayak link
+                // "Belum punya akun? Ayo Daftar" di LoginScreen).
                 Text(
-                    text = "Register",
+                    text = "Masuk",
                     color = Color.White,
                     fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    modifier = Modifier.clickable(onClick = onNavigateToRegister)
+                    modifier = Modifier.clickable(onClick = onNavigateToLogin)
                 )
             } else {
                 Icon(
@@ -151,6 +156,31 @@ fun OnboardingScreen(
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
                             }
                         }
+                )
+            }
+        }
+
+        if (isLastPage) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp, vertical = 8.dp)
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Belum punya akun? ",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    fontFamily = PlusJakartaSans
+                )
+                Text(
+                    text = "Daftar",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    fontFamily = PlusJakartaSans,
+                    modifier = Modifier.clickable(onClick = onNavigateToRegister)
                 )
             }
         }

@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.login
 
+import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,14 +41,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.sakuku.R
 import com.example.sakuku.ui.components.AuthButtonGradient
 import com.example.sakuku.ui.components.FieldLabel
 import com.example.sakuku.ui.components.GradientButton
@@ -59,16 +64,30 @@ import com.example.sakuku.ui.theme.SakukuTheme
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (userName: String?) -> Unit,
     onNavigateToRegister: () -> Unit = {},
     onNavigateToForgotPassword: () -> Unit = {},
+    onNeedsGoogleRegistration: (email: String, suggestedName: String?) -> Unit = { _, _ -> },
     onBack: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val webClientId = stringResource(R.string.google_web_client_id)
 
     LaunchedEffect(uiState.loginSuccess) {
-        if (uiState.loginSuccess) onLoginSuccess()
+        if (uiState.loginSuccess) onLoginSuccess(uiState.userName)
+    }
+
+    LaunchedEffect(uiState.needsGoogleRegistration) {
+        uiState.needsGoogleRegistration?.let { onNeedsGoogleRegistration(it.email, it.suggestedName) }
+    }
+
+    LaunchedEffect(uiState.toastMessage) {
+        uiState.toastMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.consumeToast()
+        }
     }
 
     LoginScreenContent(
@@ -77,6 +96,7 @@ fun LoginScreen(
         onPasswordChange = viewModel::onPasswordChange,
         onRememberMeChange = viewModel::onRememberMeChange,
         onLoginClick = viewModel::login,
+        onGoogleSignInClick = { viewModel.signInWithGoogle(context, webClientId) },
         onNavigateToRegister = onNavigateToRegister,
         onNavigateToForgotPassword = onNavigateToForgotPassword,
         onBack = onBack
@@ -94,6 +114,7 @@ internal fun LoginScreenContent(
     onPasswordChange: (String) -> Unit,
     onRememberMeChange: (Boolean) -> Unit,
     onLoginClick: () -> Unit,
+    onGoogleSignInClick: () -> Unit = {},
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit = {},
     onBack: () -> Unit
@@ -105,7 +126,7 @@ internal fun LoginScreenContent(
             .fillMaxSize()
             .sakukuBlobBackground()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = ScreenPadding.Horizontal)
             .navigationBarsPadding()
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -231,7 +252,8 @@ internal fun LoginScreenContent(
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(
-            onClick = { /* TODO: Google Sign-In - belum ada backend-nya */ },
+            onClick = onGoogleSignInClick,
+            enabled = !uiState.isLoading,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
             contentPadding = PaddingValues(),
