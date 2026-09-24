@@ -1,0 +1,4 @@
+package com.example.sakuku.ui.screens.simulasi
+
+class SimulasiViewModel {
+}
