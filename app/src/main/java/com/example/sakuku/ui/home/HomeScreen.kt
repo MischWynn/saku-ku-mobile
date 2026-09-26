@@ -247,6 +247,7 @@ private fun HomeScreenContent(
                     onBayarSekarang = onNavigateToBayar,
                     onLengkapiProfil = { req ->
                         when (req) {
+                            ProfileRequirement.KTP,
                             ProfileRequirement.TANGGAL_LAHIR -> onNavigateToKtpDataDiri()
                             ProfileRequirement.PEKERJAAN -> onNavigateToDataPekerjaan()
                             ProfileRequirement.REKENING -> onNavigateToRekening()

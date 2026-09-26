@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,6 +42,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -66,6 +67,9 @@ fun NotifikasiScreen(
     onBack: () -> Unit = {},
     onOpenDisbursement: (notificationId: String) -> Unit = {},
     onOpenStatus: (pengajuanId: String) -> Unit = {},
+    // Tinggi navbar mengambang - layar digambar sampai belakang navbar (background gak kepotong),
+    // list-nya dikasih ruang segini di bawah biar kartu terakhir gak ketutup. Lihat MainScreen.
+    bottomInset: Dp = 0.dp,
     viewModel: NotifikasiViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -94,7 +98,8 @@ fun NotifikasiScreen(
                 pengajuan.status == "DISBURSED" -> onOpenDisbursement(item.id)
                 else -> onOpenStatus(pengajuan.id)
             }
-        }
+        },
+        bottomInset = bottomInset
     )
 }
 
@@ -103,13 +108,13 @@ private fun NotifikasiScreenContent(
     uiState: NotifikasiUiState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
-    onItemClick: (NotificationResponse) -> Unit
+    onItemClick: (NotificationResponse) -> Unit,
+    bottomInset: Dp = 0.dp
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackgroundTop()
-            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
@@ -183,7 +188,10 @@ private fun NotifikasiScreenContent(
                     }
                 }
                 else -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = bottomInset + 24.dp)
+                    ) {
                         items(uiState.items) { item ->
                             NotifikasiCard(item, onClick = { onItemClick(item) })
                         }

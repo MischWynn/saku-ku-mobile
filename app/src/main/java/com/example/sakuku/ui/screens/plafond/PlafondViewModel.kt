@@ -2,6 +2,7 @@ package com.example.sakuku.ui.screens.plafond
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.sakuku.data.local.TokenDataStore
 import com.example.sakuku.data.remote.dto.PlafondResponse
 import com.example.sakuku.data.repository.HomeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,13 +21,23 @@ data class PlafondUiState(
 
 @HiltViewModel
 class PlafondViewModel @Inject constructor(
-    private val homeRepository: HomeRepository
+    private val homeRepository: HomeRepository,
+    private val tokenDataStore: TokenDataStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlafondUiState())
     val uiState = _uiState.asStateFlow()
 
-    init { load() }
+    init {
+        load()
+        // isLoggedIn dulu gak pernah diisi (selalu false) - tombol "Daftar untuk cek plafondmu"
+        // jadi ikut muncul buat user yang udah login.
+        viewModelScope.launch {
+            tokenDataStore.tokenFlow.collect { token ->
+                _uiState.update { it.copy(isLoggedIn = token != null) }
+            }
+        }
+    }
 
     fun load() {
         viewModelScope.launch {

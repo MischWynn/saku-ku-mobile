@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.riwayat.detail
 
+import androidx.compose.ui.unit.Dp
 import com.example.sakuku.ui.theme.sakukuBlobBackgroundTop
 import com.example.sakuku.ui.components.PengajuanStepper
 import com.example.sakuku.ui.theme.screenTitleInset
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -64,34 +64,36 @@ private val RejectRed = Color(0xFFF28FA0)
 fun StatusPinjamanDetailScreen(
     id: String,
     onBack: () -> Unit = {},
+    // Tinggi navbar mengambang (lihat MainScreen) - ruang ekstra di bawah konten scroll.
+    bottomInset: Dp = 0.dp,
     viewModel: StatusPinjamanDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(id) { viewModel.load(id) }
 
-    StatusPinjamanDetailScreenContent(uiState = uiState, onRetry = viewModel::retry, onBack = onBack)
+    StatusPinjamanDetailScreenContent(uiState = uiState, onRetry = viewModel::retry, onBack = onBack, bottomInset = bottomInset)
 }
 
 @Composable
 private fun StatusPinjamanDetailScreenContent(
     uiState: StatusPinjamanDetailUiState,
     onRetry: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    bottomInset: Dp = 0.dp
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackgroundTop()
             .statusBarsPadding()
-            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = ScreenPadding.Horizontal)
-                .padding(bottom = 32.dp)
+                .padding(bottom = 32.dp + bottomInset)
         ) {
             Row(modifier = Modifier.screenTitleInset(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {

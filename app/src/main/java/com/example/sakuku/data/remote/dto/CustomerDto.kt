@@ -26,6 +26,9 @@ data class CustomerMeResponse(
     // Boolean doang, bukan data Base64 mentah - backend sengaja gak balikin foto KTP-nya
     // sendiri (keputusan produk: gak ditampilin ke UI, cuma "sudah difoto apa belum").
     val hasFotoKtp: Boolean = false,
+    // null = boleh (ganti) foto KTP. Selain itu alasan terkunci dari backend (ada pengajuan yang
+    // lagi direview, atau pernah cair) - ditampilin apa adanya di KTP & Data Diri.
+    val fotoKtpLockReason: String? = null,
     // Domisili cascading dropdown (Provinsi/Kota/Kecamatan) + Rekening Bank - ditambah 17 Sept
     val provinsi: String? = null,
     val kota: String? = null,

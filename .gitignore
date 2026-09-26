@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.kotlin
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -13,5 +14,13 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Signing / rahasia
 /keys
-keys.properties
+keystore.properties
+*.jks
+*.keystore
+
+# APP
+/app/build
+/app/release

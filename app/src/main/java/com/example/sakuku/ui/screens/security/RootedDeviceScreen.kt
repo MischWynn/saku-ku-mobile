@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.security
 
+import androidx.compose.foundation.layout.systemBarsPadding
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +41,7 @@ fun RootedDeviceScreen() {
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackground()
+            .systemBarsPadding()
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {

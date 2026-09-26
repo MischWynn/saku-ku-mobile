@@ -3,13 +3,7 @@
 package com.example.sakuku.ui.screens.register
 
 import com.example.sakuku.ui.theme.ScreenPadding
-import android.Manifest
-import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,8 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.CameraAlt
-import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
@@ -61,8 +52,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -74,14 +63,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import com.example.sakuku.R
-import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.sakuku.data.remote.dto.WilayahItem
 import com.example.sakuku.ui.components.AuthButtonGradient
 import com.example.sakuku.ui.components.FieldLabel
 import com.example.sakuku.ui.components.GradientButton
+import com.example.sakuku.ui.components.KtpPhotoCapture
 import com.example.sakuku.ui.components.OtpCodeInput
 import com.example.sakuku.ui.components.RegionDropdownField
 import com.example.sakuku.ui.components.RupiahVisualTransformation
@@ -92,7 +80,6 @@ import com.example.sakuku.ui.theme.BlobMid
 import com.example.sakuku.ui.theme.PlusJakartaSans
 import com.example.sakuku.ui.theme.sakukuBlobBackground
 import com.example.sakuku.ui.theme.SakukuTheme
-import java.io.File
 
 // Register direstrukturisasi 17 Sept, URUTAN BARU jadi 4 step: Akun -> Verifikasi OTP ->
 // Identitas (Foto KTP+NIK+Domisili+DOB) -> Data Pekerjaan. Sebelumnya NIK ada di step Akun dan
@@ -196,7 +183,9 @@ private fun RegisterScreenContent(
             .padding(horizontal = ScreenPadding.Horizontal)
             .navigationBarsPadding()
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        // Step 0 punya tombol back (48dp) yang ngasih jarak dari status bar - step 1-3 gak punya,
+        // jadi judul "Daftar" nempel ke status bar. Jarak ekstra di sini biar sejajar.
+        Spacer(modifier = Modifier.height(if (uiState.currentStep == 0) 24.dp else 48.dp))
 
         if (uiState.currentStep == 0) {
             IconButton(onClick = onBack) {
@@ -568,9 +557,9 @@ private fun RegisterStepIdentitas(
     onRetryProvinsi: () -> Unit = {}
 ) {
     Column {
-        RegisterStepFotoKtp(uiState = uiState, onFotoKtpCaptured = onFotoKtpCaptured)
+        KtpPhotoCapture(previewUri = uiState.fotoKtpPreviewUri, onCaptured = onFotoKtpCaptured)
         Text(
-            text = "Opsional - bisa dilengkapi lagi nanti dari Profil kalau kamera gak bisa dipakai sekarang.",
+            text = "Bisa dilewati dulu kalau kamera gak bisa dipakai sekarang, tapi wajib dilengkapi dari Profil sebelum mengajukan pinjaman.",
             color = Color.White.copy(alpha = 0.4f),
             fontFamily = PlusJakartaSans,
             fontSize = 11.sp,
@@ -690,104 +679,6 @@ private fun RegisterStepPekerjaan(
         visualTransformation = RupiahVisualTransformation(),
         placeholder = "Contoh: 5000000"
     )
-}
-
-// Capture foto KTP via kamera - pola diambil dari KotlinTest/screens/TransactionScreen.kt
-// (ActivityResultContracts.TakePicture() + FileProvider). Gak pakai OCR (didefer jadi
-// enhancement nanti) - NIK tetap diisi manual di step ini, foto ini murni dokumen pendukung.
-@Composable
-private fun RegisterStepFotoKtp(
-    uiState: RegisterUiState,
-    onFotoKtpCaptured: (Uri) -> Unit
-) {
-    val context = LocalContext.current
-    var captureUri by remember { mutableStateOf<Uri?>(null) }
-
-    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
-        if (saved) captureUri?.let(onFotoKtpCaptured)
-    }
-    val requestPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            val uri = createKtpCaptureUri(context)
-            captureUri = uri
-            takePicture.launch(uri)
-        }
-    }
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        val previewUri = uiState.fotoKtpPreviewUri
-        if (previewUri != null) {
-            val bitmap = remember(previewUri) {
-                context.contentResolver.openInputStream(previewUri)?.use { BitmapFactory.decodeStream(it) }
-            }
-            if (bitmap != null) {
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "Foto KTP",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1.6f)
-                        .clip(RoundedCornerShape(16.dp))
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1.6f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.05f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Rounded.CreditCard, contentDescription = null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.height(48.dp))
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        Text(
-            text = "Pastikan seluruh bagian KTP kelihatan jelas dan gak buram.",
-            color = Color.White.copy(alpha = 0.6f),
-            fontFamily = PlusJakartaSans,
-            fontSize = 12.5.sp,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                val permissionStatus = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
-                    val uri = createKtpCaptureUri(context)
-                    captureUri = uri
-                    takePicture.launch(uri)
-                } else {
-                    requestPermissionLauncher.launch(Manifest.permission.CAMERA)
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f)),
-            modifier = Modifier.fillMaxWidth().height(52.dp)
-        ) {
-            Icon(Icons.Rounded.CameraAlt, contentDescription = null, tint = Color.White)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (previewUri != null) "Foto Ulang" else "Ambil Foto KTP",
-                color = Color.White,
-                fontFamily = PlusJakartaSans,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-private fun createKtpCaptureUri(context: android.content.Context): Uri {
-    val directory = File(context.cacheDir, "camera").apply { mkdirs() }
-    val file = File.createTempFile("ktp_", ".jpg", directory)
-    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
 
 @Preview(showBackground = true)

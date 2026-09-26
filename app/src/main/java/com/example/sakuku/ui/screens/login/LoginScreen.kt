@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.login
 
+import androidx.compose.foundation.layout.statusBarsPadding
 import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -125,6 +126,8 @@ internal fun LoginScreenContent(
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackground()
+            // Dulu cuma navigationBarsPadding - tombol kembali nabrak status bar (edge-to-edge).
+            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = ScreenPadding.Horizontal)
             .navigationBarsPadding()
@@ -158,11 +161,13 @@ internal fun LoginScreenContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        FieldLabel("Email")
+        FieldLabel("Email / No HP")
         SakukuOutlinedField(
             value = uiState.identifier,
             onValueChange = onIdentifierChange,
-            keyboardType = KeyboardType.Email,
+            // Text, bukan Email - keyboard email gak nyediain angka di baris utama.
+            keyboardType = KeyboardType.Text,
+            placeholder = "nama@email.com atau 08xxxxxxxxxx",
             modifier = Modifier.testTag("login_email_field")
         )
 

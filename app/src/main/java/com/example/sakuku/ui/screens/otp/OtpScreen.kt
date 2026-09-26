@@ -1,6 +1,8 @@
 package com.example.sakuku.ui.screens.otp
 
 import com.example.sakuku.ui.theme.ScreenPadding
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,6 +72,14 @@ fun OtpScreen(
 
     LaunchedEffect(email) { viewModel.init(email) }
     LaunchedEffect(uiState.verified) { if (uiState.verified) onVerified(uiState.code) }
+
+    val context = LocalContext.current
+    LaunchedEffect(uiState.toastMessage) {
+        uiState.toastMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.consumeToast()
+        }
+    }
 
     OtpScreenContent(
         uiState = uiState,

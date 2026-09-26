@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.welcome
 
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,7 @@ private fun WelcomeScreenContent(userName: String) {
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackground()
+            .systemBarsPadding()
             .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center

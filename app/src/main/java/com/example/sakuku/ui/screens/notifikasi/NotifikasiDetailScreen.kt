@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.notifikasi
 
+import androidx.compose.ui.unit.Dp
 import com.example.sakuku.ui.theme.sakukuBlobBackgroundTop
 import com.example.sakuku.ui.components.PengajuanStepper
 import androidx.compose.foundation.background
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -67,11 +67,19 @@ fun NotifikasiDetailScreen(
     notificationId: String,
     onBack: () -> Unit = {},
     onLihatTagihan: () -> Unit = {},
+    // Tinggi navbar mengambang (lihat MainScreen) - ruang ekstra di bawah konten scroll.
+    bottomInset: Dp = 0.dp,
     viewModel: NotifikasiDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(notificationId) { viewModel.load(notificationId) }
-    NotifikasiDetailContent(uiState = uiState, onBack = onBack, onRetry = viewModel::retry, onLihatTagihan = onLihatTagihan)
+    NotifikasiDetailContent(
+        uiState = uiState,
+        onBack = onBack,
+        onRetry = viewModel::retry,
+        onLihatTagihan = onLihatTagihan,
+        bottomInset = bottomInset
+    )
 }
 
 @Composable
@@ -79,21 +87,21 @@ private fun NotifikasiDetailContent(
     uiState: NotifikasiDetailUiState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
-    onLihatTagihan: () -> Unit
+    onLihatTagihan: () -> Unit,
+    bottomInset: Dp = 0.dp
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackgroundTop()
             .statusBarsPadding()
-            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = ScreenPadding.Horizontal)
-                .padding(top = 8.dp, bottom = 32.dp)
+                .padding(top = 8.dp, bottom = 32.dp + bottomInset)
         ) {
             Row(modifier = Modifier.screenTitleInset(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {

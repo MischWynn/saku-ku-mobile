@@ -2,4 +2,6 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Sama dengan BgTop di ui/theme/Color.kt - background window sebelum Compose selesai gambar. -->
+    <color name="sakuku_window_bg">#FF08120F</color>
 </resources>

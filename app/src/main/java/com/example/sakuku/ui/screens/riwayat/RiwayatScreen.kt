@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +32,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -53,6 +54,9 @@ private val GlassBorder = Color.White.copy(alpha = 0.12f)
 fun RiwayatScreen(
     onNavigateToApply: () -> Unit = {},
     onItemClick: (id: String) -> Unit = {},
+    // Tinggi navbar mengambang - layar digambar sampai belakang navbar (background gak kepotong),
+    // list-nya dikasih ruang segini di bawah biar kartu terakhir gak ketutup. Lihat MainScreen.
+    bottomInset: Dp = 0.dp,
     viewModel: RiwayatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -65,7 +69,8 @@ fun RiwayatScreen(
         uiState = uiState,
         onRetry = viewModel::load,
         onNavigateToApply = onNavigateToApply,
-        onItemClick = onItemClick
+        onItemClick = onItemClick,
+        bottomInset = bottomInset
     )
 }
 
@@ -74,13 +79,13 @@ private fun RiwayatScreenContent(
     uiState: RiwayatUiState,
     onRetry: () -> Unit,
     onNavigateToApply: () -> Unit,
-    onItemClick: (id: String) -> Unit
+    onItemClick: (id: String) -> Unit,
+    bottomInset: Dp = 0.dp
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackgroundTop()
-            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
@@ -136,7 +141,10 @@ private fun RiwayatScreenContent(
                                 )
                             }
                         }
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = bottomInset + 24.dp)
+                        ) {
                             items(uiState.items) { item ->
                                 RiwayatCard(item, onClick = { onItemClick(item.id) })
                             }
@@ -193,23 +201,26 @@ private fun RiwayatCard(item: PengajuanMeResponse, onClick: () -> Unit) {
             .background(GlassFill)
             .border(1.dp, GlassBorder, RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+            // weight(1f) biar kolom nominal+ID gak kejepit sama badge status di kanan.
+            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(
                     text = LoanCalculator.formatRupiah(item.nominalPengajuan),
                     color = Color.White,
                     fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 18.sp,
+                    lineHeight = 24.sp
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = LoanCalculator.formatPengajuanRef(item.id),
-                    color = Color.White.copy(alpha = 0.35f),
+                    color = Color.White.copy(alpha = 0.4f),
                     fontFamily = PlusJakartaSans,
-                    fontSize = 10.sp
+                    fontSize = 11.sp
                 )
             }
             StatusBadge(item.status)
@@ -219,7 +230,9 @@ private fun RiwayatCard(item: PengajuanMeResponse, onClick: () -> Unit) {
                 "${item.tenor} Bulan${item.tujuanPinjaman?.let { " - ${tujuanLabel(it)}" } ?: ""}",
                 color = Color.White.copy(alpha = 0.55f),
                 fontFamily = PlusJakartaSans,
-                fontSize = 11.5.sp
+                fontSize = 11.5.sp,
+                // weight: tujuan pinjaman yang panjang wrap sendiri, tanggal gak kejepit.
+                modifier = Modifier.weight(1f).padding(end = 12.dp)
             )
             Text(
                 formatTanggal(item.tanggalPengajuan),

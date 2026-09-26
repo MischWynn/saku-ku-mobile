@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.profil
 
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -309,10 +310,11 @@ private fun TierIdentityCard(name: String, nik: String, tier: String, plafond: D
     // Tiap tier punya gradient + warna accent sendiri (lihat ui/theme/TierStyle.kt), biar
     // Bronze/Silver/Gold/Platinum kebedain sekilas. Watermark koi tetap sama di semua tier.
     val style = tierStyleOf(tier)
+    // Tinggi minimum (bukan fixed 168dp) - nama panjang yang wrap 2 baris atau font gede gak
+    // kepotong lagi, kartunya ikut memanjang.
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(168.dp)
             .clip(RoundedCornerShape(22.dp))
             .background(
                 Brush.linearGradient(
@@ -327,12 +329,13 @@ private fun TierIdentityCard(name: String, nik: String, tier: String, plafond: D
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .heightIn(min = 168.dp)
                 .padding(20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                     Text(
                         text = name,
                         color = Color.White,
@@ -389,6 +392,7 @@ private fun TierIdentityCard(name: String, nik: String, tier: String, plafond: D
                 } else {
                     Spacer(modifier = Modifier.width(1.dp))
                 }
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "${tier.replaceFirstChar { it.uppercase() }} tier",

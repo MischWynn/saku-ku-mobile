@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.plafond
 
+import androidx.compose.ui.unit.Dp
 import com.example.sakuku.ui.theme.screenTitleInset
 import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
@@ -62,6 +63,8 @@ private fun tierColor(namaPlafond: String): Color = when (namaPlafond.lowercase(
 fun PlafondScreen(
     onBack: () -> Unit = {},
     onNavigateToRegister: () -> Unit = {},
+    // Tinggi navbar mengambang (lihat MainScreen) - ruang ekstra di bawah konten scroll.
+    bottomInset: Dp = 0.dp,
     viewModel: PlafondViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -69,7 +72,8 @@ fun PlafondScreen(
         uiState = uiState,
         onBack = onBack,
         onRetry = viewModel::load,
-        onNavigateToRegister = onNavigateToRegister
+        onNavigateToRegister = onNavigateToRegister,
+        bottomInset = bottomInset
     )
 }
 
@@ -78,7 +82,8 @@ private fun PlafondScreenContent(
     uiState: PlafondUiState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onNavigateToRegister: () -> Unit,
+    bottomInset: Dp = 0.dp
 ) {
     Box(
         modifier = Modifier
@@ -90,7 +95,7 @@ private fun PlafondScreenContent(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = ScreenPadding.Horizontal)
-                .padding(top = 20.dp, bottom = 32.dp)
+                .padding(top = 20.dp, bottom = 32.dp + bottomInset)
         ) {
             Row(modifier = Modifier.screenTitleInset(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {

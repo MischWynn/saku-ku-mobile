@@ -25,6 +25,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CreditCard
+import androidx.compose.material.icons.rounded.Lock
+import android.net.Uri
+import com.example.sakuku.ui.components.KtpPhotoCapture
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -72,6 +75,8 @@ fun KtpDataDiriScreen(
     KtpDataDiriContent(
         uiState = uiState,
         onBack = onBack,
+        onNikInputChange = viewModel::onNikInputChange,
+        onFotoKtpCaptured = viewModel::onFotoKtpCaptured,
         onNamaLengkapChange = viewModel::onNamaLengkapChange,
         onTanggalLahirChange = viewModel::onTanggalLahirChange,
         onAlamatChange = viewModel::onAlamatChange,
@@ -87,6 +92,8 @@ fun KtpDataDiriScreen(
 private fun KtpDataDiriContent(
     uiState: ProfilUiState,
     onBack: () -> Unit,
+    onNikInputChange: (String) -> Unit = {},
+    onFotoKtpCaptured: (Uri) -> Unit = {},
     onNamaLengkapChange: (String) -> Unit,
     onTanggalLahirChange: (String) -> Unit,
     onAlamatChange: (String) -> Unit,
@@ -143,7 +150,13 @@ private fun KtpDataDiriContent(
 
             // Strip identitas - NIK masked + badge "Terverifikasi", nempel di atas biar konteks
             // "ini data e-KYC kamu" langsung kebaca sebelum masuk ke field yang bisa diedit.
-            NikIdentityStrip(nik = uiState.nik)
+            // NIK masih kosong (langkah Identitas di Register dilewati) -> field input, cuma
+            // bisa diisi sekali.
+            if (uiState.nik.isNotBlank()) {
+                NikIdentityStrip(nik = uiState.nik)
+            }
+
+            KtpSection(uiState = uiState, onNikInputChange = onNikInputChange, onFotoKtpCaptured = onFotoKtpCaptured)
 
             if (uiState.errorMessage != null) {
                 Column(
@@ -243,6 +256,72 @@ private fun KtpDataDiriContent(
 
             Spacer(modifier = Modifier.height(4.dp))
             GradientButton(text = "Simpan Perubahan", onClick = onSave, isLoading = uiState.isSaving)
+        }
+    }
+}
+
+// NIK (kalau belum ada) + foto KTP. Keduanya wajib sebelum ngajuin pinjaman. Aturan foto ulang
+// dari backend (fotoKtpLockReason): bebas selama gak ada pengajuan yang lagi direview dan belum
+// pernah cair - pengajuan ditolak/dibatalkan gak ngunci.
+@Composable
+private fun KtpSection(
+    uiState: ProfilUiState,
+    onNikInputChange: (String) -> Unit,
+    onFotoKtpCaptured: (Uri) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(GlassFill)
+            .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        if (uiState.nik.isBlank()) {
+            Column {
+                FieldLabel("NIK")
+                SakukuOutlinedField(
+                    value = uiState.nikInput,
+                    onValueChange = onNikInputChange,
+                    keyboardType = KeyboardType.Number,
+                    placeholder = "16 digit sesuai KTP"
+                )
+                Text(
+                    text = "NIK hanya bisa diisi sekali, pastikan sesuai KTP.",
+                    color = Color.White.copy(alpha = 0.45f),
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+        }
+
+        Column {
+            FieldLabel("Foto KTP")
+            KtpPhotoCapture(
+                previewUri = uiState.fotoKtpPreviewUri,
+                onCaptured = onFotoKtpCaptured,
+                alreadyUploaded = uiState.hasFotoKtp,
+                enabled = uiState.fotoKtpLockReason == null
+            )
+            uiState.fotoKtpLockReason?.let { reason ->
+                Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(top = 4.dp)) {
+                    Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(reason, color = Color.White.copy(alpha = 0.6f), fontFamily = PlusJakartaSans, fontSize = 11.5.sp, lineHeight = 16.sp)
+                }
+            }
+            if (uiState.fotoKtpPreviewUri != null) {
+                Text(
+                    text = "Foto baru belum tersimpan - tekan Simpan Perubahan.",
+                    color = BlobDark,
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.5.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 }

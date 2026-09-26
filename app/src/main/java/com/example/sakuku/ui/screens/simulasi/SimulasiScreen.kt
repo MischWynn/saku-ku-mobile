@@ -2,6 +2,10 @@
 
 package com.example.sakuku.ui.screens.simulasi
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.unit.Dp
 import com.example.sakuku.ui.theme.screenTitleInset
 import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
@@ -60,6 +64,8 @@ private val GlassBorder = Color.White.copy(alpha = 0.12f)
 fun SimulasiScreen(
     onBack: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
+    // Tinggi navbar mengambang (lihat MainScreen) - ruang ekstra di bawah konten scroll.
+    bottomInset: Dp = 0.dp,
     viewModel: SimulasiViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -69,7 +75,8 @@ fun SimulasiScreen(
         onNominalChange = viewModel::onNominalChange,
         onTenorSelect = viewModel::onTenorSelect,
         onRetry = viewModel::retry,
-        onNavigateToLogin = onNavigateToLogin
+        onNavigateToLogin = onNavigateToLogin,
+        bottomInset = bottomInset
     )
 }
 
@@ -80,7 +87,8 @@ private fun SimulasiScreenContent(
     onNominalChange: (Double) -> Unit,
     onTenorSelect: (String) -> Unit,
     onRetry: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    bottomInset: Dp = 0.dp
 ) {
     Box(
         modifier = Modifier
@@ -92,7 +100,7 @@ private fun SimulasiScreenContent(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = ScreenPadding.Horizontal)
-                .padding(top = 20.dp, bottom = 32.dp)
+                .padding(top = 20.dp, bottom = 32.dp + bottomInset)
         ) {
             Row(modifier = Modifier.screenTitleInset(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
@@ -176,18 +184,25 @@ private fun SimulasiScreenContent(
                     Column {
                         Text("Pilih tenor", color = Color.White.copy(alpha = 0.75f), fontFamily = PlusJakartaSans, fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            uiState.tenors.forEach { tenor ->
-                                SelectableChip(
-                                    modifier = Modifier.weight(1f),
-                                    label = "${tenor.tenor} Bulan",
-                                    subtitle = "${formatPercent(tenor.interestRate)}%",
-                                    isSelected = tenor.id == uiState.selectedTenorId,
-                                    onClick = { onTenorSelect(tenor.id) }
-                                )
+                        // Chip dibagi rata kalau muat (min ~84dp/chip biar "12 Bulan" gak kepecah
+                        // 2 baris). Layar sempit (mis. HP 360dp) / font gede -> geser horizontal.
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                            val count = uiState.tenors.size
+                            val fitsEvenly = count > 0 && (maxWidth - 8.dp * (count - 1)) / count >= 84.dp
+                            Row(
+                                modifier = if (fitsEvenly) Modifier.fillMaxWidth()
+                                else Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                uiState.tenors.forEach { tenor ->
+                                    SelectableChip(
+                                        modifier = if (fitsEvenly) Modifier.weight(1f) else Modifier,
+                                        label = "${tenor.tenor} Bulan",
+                                        subtitle = "${formatPercent(tenor.interestRate)}%",
+                                        isSelected = tenor.id == uiState.selectedTenorId,
+                                        onClick = { onTenorSelect(tenor.id) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -259,11 +274,42 @@ private fun EstimateCard(
 
 @Composable
 private fun EstimateRow(label: String, value: String) {
+    // Label weight(1f): nilai tetap utuh di kanan, label yang ngalah wrap di layar sempit.
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Color.White.copy(alpha = 0.55f), fontFamily = PlusJakartaSans, fontSize = 11.5.sp)
-        Text(value, color = Color.White, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+        Text(label, color = Color.White.copy(alpha = 0.55f), fontFamily = PlusJakartaSans, fontSize = 11.5.sp, modifier = Modifier.weight(1f).padding(end = 12.dp))
+        Text(value, color = Color.White, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 11.5.sp, textAlign = TextAlign.End)
     }
 }
 
 private fun formatPercent(rate: Double): String =
     if (rate == rate.toInt().toDouble()) rate.toInt().toString() else "%.1f".format(rate)
+
+
+// Preview buat screenshot - pakai data contoh (tenor & bunga persis data backend: 6/12/18/24
+// bulan, bunga flat per tenor), gak butuh Hilt/network. heightDp dibikin tinggi biar seluruh
+// layar kebaca dalam 1 gambar; ganti ke 800 kalau mau ukuran 1 layar HP.
+@Preview(name = "Simulasi Pinjaman", showBackground = true, backgroundColor = 0xFF0A1614, widthDp = 390, heightDp = 1000)
+@Composable
+private fun SimulasiScreenPreview() {
+    SakukuTheme {
+        SimulasiScreenContent(
+            uiState = SimulasiUiState(
+                isLoading = false,
+                tenors = listOf(
+                    BungaTenorResponse("t1", 6, 3.0, "ACTIVE"),
+                    BungaTenorResponse("t2", 12, 8.0, "ACTIVE"),
+                    BungaTenorResponse("t3", 18, 10.0, "ACTIVE"),
+                    BungaTenorResponse("t4", 24, 12.0, "ACTIVE")
+                ),
+                selectedTenorId = "t2",
+                nominal = 10_000_000.0,
+                maxNominal = 50_000_000.0
+            ),
+            onBack = {},
+            onNominalChange = {},
+            onTenorSelect = {},
+            onRetry = {},
+            onNavigateToLogin = {}
+        )
+    }
+}

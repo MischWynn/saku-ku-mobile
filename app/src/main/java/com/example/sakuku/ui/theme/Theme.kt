@@ -4,6 +4,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -45,9 +48,21 @@ private val SakukuTypography = Typography(
 
 @Composable
 fun SakukuTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = SakukuColorScheme,
-        typography = SakukuTypography,
-        content = content
+    // Ukuran font sistem tetap dihormati, tapi dibatasi MAX_FONT_SCALE. HP Samsung dkk sering
+    // diset font/"zoom layar" gede (bisa sampai 2x), dan banyak baris/kartu di app ini lebarnya
+    // pas-pasan (tenor, nominal+badge, e-card Profil) - tanpa batas, teksnya numpuk/kepotong.
+    val density = LocalDensity.current
+    val cappedDensity = Density(
+        density = density.density,
+        fontScale = density.fontScale.coerceAtMost(MAX_FONT_SCALE)
     )
+    CompositionLocalProvider(LocalDensity provides cappedDensity) {
+        MaterialTheme(
+            colorScheme = SakukuColorScheme,
+            typography = SakukuTypography,
+            content = content
+        )
+    }
 }
+
+private const val MAX_FONT_SCALE = 1.15f

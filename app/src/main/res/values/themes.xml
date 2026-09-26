@@ -1,8 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+    <!-- Base application theme. App ini selalu gelap (warna diatur Compose/SakukuTheme), jadi
+         theme View-nya juga dikunci gelap:
+         - windowBackground gelap: gak ada kedipan putih pas app dibuka di HP yang mode terang.
+         - forceDarkAllowed=false: fitur "paksa mode gelap" Samsung/Xiaomi/dll gak ngubah warna app. -->
     <style name="Base.Theme.Sakuku" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="android:windowBackground">@color/sakuku_window_bg</item>
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 
     <style name="Theme.Sakuku" parent="Base.Theme.Sakuku" />

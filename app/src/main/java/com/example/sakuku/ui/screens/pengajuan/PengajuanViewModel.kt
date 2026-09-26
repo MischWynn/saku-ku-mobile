@@ -30,6 +30,8 @@ data class PengajuanUiState(
     val pekerjaan: String? = null,
     val pendapatanBulanan: Double? = null,
     val tanggalLahir: String? = null,
+    val nik: String? = null,
+    val hasFotoKtp: Boolean = false,
     val namaBank: String? = null,
     val nomorRekening: String? = null,
     val namaPemilikRekening: String? = null,
@@ -76,8 +78,13 @@ data class PengajuanUiState(
     val rekeningMissing: Boolean
         get() = !isLoading && (namaBank.isNullOrBlank() || nomorRekening.isNullOrBlank() || namaPemilikRekening.isNullOrBlank())
 
+    // NIK + foto KTP wajib (backend PengajuanService.create() juga nolak) - staff butuh
+    // keduanya buat verifikasi identitas. Bisa kosong kalau langkah Identitas di Register dilewati.
+    val ktpMissing: Boolean
+        get() = !isLoading && (nik.isNullOrBlank() || !hasFotoKtp)
+
     val profileIncomplete: Boolean
-        get() = employmentIncomplete || tanggalLahirMissing || underage || rekeningMissing
+        get() = ktpMissing || employmentIncomplete || tanggalLahirMissing || underage || rekeningMissing
 
     // Selisih plafond total vs sisa yang bisa dipakai sekarang - kalau > 0 berarti ada
     // pengajuan lain (masih direview atau udah cair) yang lagi "ketahan" makan jatah plafond.
@@ -141,6 +148,8 @@ class PengajuanViewModel @Inject constructor(
                     pekerjaan = profile?.pekerjaan,
                     pendapatanBulanan = profile?.pendapatanBulanan,
                     tanggalLahir = profile?.tanggalLahir,
+                    nik = profile?.nik,
+                    hasFotoKtp = profile?.hasFotoKtp ?: false,
                     namaBank = profile?.namaBank,
                     nomorRekening = profile?.nomorRekening,
                     namaPemilikRekening = profile?.namaPemilikRekening,

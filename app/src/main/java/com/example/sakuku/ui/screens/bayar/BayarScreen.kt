@@ -1,5 +1,7 @@
 package com.example.sakuku.ui.screens.bayar
 
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.unit.Dp
 import com.example.sakuku.ui.theme.screenTitleInset
 import com.example.sakuku.ui.theme.ScreenPadding
 import androidx.compose.foundation.background
@@ -13,7 +15,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -54,24 +55,28 @@ private val GlassBorder = Color.White.copy(alpha = 0.12f)
 @Composable
 fun BayarScreen(
     onBack: () -> Unit = {},
+    // Tinggi navbar mengambang (lihat MainScreen) - ruang ekstra di bawah list.
+    bottomInset: Dp = 0.dp,
     viewModel: BayarViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    BayarScreenContent(uiState = uiState, onRetry = viewModel::load, onBack = onBack)
+    BayarScreenContent(uiState = uiState, onRetry = viewModel::load, onBack = onBack, bottomInset = bottomInset)
 }
 
 @Composable
 private fun BayarScreenContent(
     uiState: BayarUiState,
     onRetry: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    bottomInset: Dp = 0.dp
 ) {
+    // Status bar udah diurus MainScreen (padding + consume), jadi statusBarsPadding() di sini
+    // gak nambah jarak dobel.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackground()
             .statusBarsPadding()
-            .navigationBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = ScreenPadding.Horizontal).padding(top = 8.dp)) {
             Row(modifier = Modifier.screenTitleInset(), verticalAlignment = Alignment.CenterVertically) {
@@ -129,7 +134,10 @@ private fun BayarScreenContent(
                     }
                 }
                 else -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = bottomInset + 24.dp)
+                    ) {
                         items(uiState.items) { item -> TagihanCard(item) }
                     }
                 }

@@ -1,5 +1,6 @@
 package com.example.sakuku.ui.screens.onboarding
 
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,6 +68,7 @@ fun OnboardingScreen(
             .sakukuBlobBackground()
             // enableEdgeToEdge() aktif di MainActivity - tanpa ini, row Lewati/Register
             // ketiban 3-button system nav bar (ketemu 13 Sept, HP Android 14/API 34).
+            .statusBarsPadding()
             .navigationBarsPadding()
     ) {
         HorizontalPager(

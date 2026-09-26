@@ -1,6 +1,8 @@
 package com.example.sakuku.ui.screens.profil
 
 import com.example.sakuku.util.Validators
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sakuku.data.local.TokenDataStore
@@ -8,8 +10,10 @@ import com.example.sakuku.data.remote.dto.CustomerUpdateRequest
 import com.example.sakuku.data.remote.dto.WilayahItem
 import com.example.sakuku.data.repository.CustomerRepository
 import com.example.sakuku.data.repository.WilayahRepository
+import com.example.sakuku.ui.components.encodeKtpPhoto
 import com.example.sakuku.ui.screens.register.TipePekerjaan
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -21,6 +25,14 @@ data class ProfilUiState(
     val isSaving: Boolean = false,
     val namaLengkap: String = "",
     val nik: String = "",
+    // NIK cuma bisa diisi SEKALI (backend nolak kalau udah ada) - nikInput dipakai selama nik
+    // dari server masih kosong, setelah itu jadi strip read-only.
+    val nikInput: String = "",
+    // Foto KTP: hasFotoKtp dari server (fotonya sendiri gak pernah dikirim balik), preview = hasil
+    // jepretan baru yang belum disimpan. fotoKtpLockReason != null -> gak boleh foto ulang.
+    val hasFotoKtp: Boolean = false,
+    val fotoKtpLockReason: String? = null,
+    val fotoKtpPreviewUri: Uri? = null,
     val tanggalLahir: String = "",
     val email: String = "",
     val noHp: String = "",
@@ -56,7 +68,8 @@ data class ProfilUiState(
 class ProfilViewModel @Inject constructor(
     private val customerRepository: CustomerRepository,
     private val wilayahRepository: WilayahRepository,
-    private val tokenDataStore: TokenDataStore
+    private val tokenDataStore: TokenDataStore,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfilUiState())
@@ -64,18 +77,11 @@ class ProfilViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // loadProfile() manggil syncSelectedWilayah() yang butuh provinsiList UDAH keisi
-            // (buat nyari-balik provinsi tersimpan by-name) - jadi HARUS nunggu provinsi kelar
-            // dimuat dulu di coroutine yang sama, gak boleh dijalanin paralel/fire-and-forget.
             loadProvinsi()
             loadProfile()
         }
     }
 
-    // Dulu diem-diem gagal (getOrNull() ?: emptyList(), gak ada errorMessage) - dropdown Provinsi
-    // keliatan normal tapi isinya 0 item selamanya. Sekarang gagal keisi errorMessage (banner
-    // generik yang udah ada di KtpDataDiriScreen otomatis nampilinnya) + retryFetchProvinsi()
-    // buat coba lagi.
     private suspend fun loadProvinsi() {
         _uiState.update { it.copy(isLoadingProvinsi = true, errorMessage = null) }
         wilayahRepository.getProvinces()
@@ -98,11 +104,6 @@ class ProfilViewModel @Inject constructor(
         viewModelScope.launch { loadProfile() }
     }
 
-    // Dipanggil tiap ProfilScreen kebuka lagi (balik dari tab lain / dari Data Pekerjaan dst).
-    // Tanpa ini data di tab Profil nyangkut di versi pas pertama kebuka - mis. abis isi Data
-    // Pekerjaan, plafond udah dihitung ulang backend tapi kartu tier di Profil masih nampilin
-    // angka lama. Load pertama tetap lewat init (butuh provinsi dimuat duluan), jadi ini skip
-    // sampai load pertama itu kelar.
     private var hasLoadedOnce = false
 
     fun refreshIfLoaded() {
@@ -119,6 +120,9 @@ class ProfilViewModel @Inject constructor(
                         isLoading = false,
                         namaLengkap = profile.namaLengkap,
                         nik = profile.nik ?: "",
+                        hasFotoKtp = profile.hasFotoKtp,
+                        fotoKtpLockReason = profile.fotoKtpLockReason,
+                        fotoKtpPreviewUri = null,
                         tanggalLahir = profile.tanggalLahir ?: "",
                         email = profile.email ?: "",
                         noHp = profile.noHp ?: "",
@@ -220,6 +224,8 @@ class ProfilViewModel @Inject constructor(
         _uiState.update { it.copy(selectedKecamatan = item, successMessage = null) }
     }
 
+    fun onNikInputChange(v: String) = _uiState.update { it.copy(nikInput = v.filter { c -> c.isDigit() }.take(16), successMessage = null) }
+    fun onFotoKtpCaptured(uri: Uri) = _uiState.update { it.copy(fotoKtpPreviewUri = uri, successMessage = null, errorMessage = null) }
     fun onNamaLengkapChange(v: String) = _uiState.update { it.copy(namaLengkap = v, successMessage = null) }
     fun onTanggalLahirChange(v: String) = _uiState.update { it.copy(tanggalLahir = v, successMessage = null) }
     fun onEmailChange(v: String) = _uiState.update { it.copy(email = v, successMessage = null) }
@@ -238,10 +244,22 @@ class ProfilViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = Validators.tanggalLahirError(state.tanggalLahir), successMessage = null) }
             return
         }
+        val sendNik = state.nik.isBlank() && state.nikInput.isNotBlank()
+        if (sendNik && state.nikInput.length != 16) {
+            _uiState.update { it.copy(errorMessage = "NIK harus 16 digit", successMessage = null) }
+            return
+        }
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null, successMessage = null) }
+            val fotoBase64 = state.fotoKtpPreviewUri?.let { uri -> encodeKtpPhoto(appContext, uri) }
+            if (state.fotoKtpPreviewUri != null && fotoBase64 == null) {
+                _uiState.update { it.copy(isSaving = false, errorMessage = "Foto KTP gagal dibaca, coba foto ulang") }
+                return@launch
+            }
             customerRepository.updateMe(
                 CustomerUpdateRequest(
+                    nik = if (sendNik) state.nikInput else null,
+                    fotoKtp = fotoBase64,
                     namaLengkap = state.namaLengkap.ifBlank { null },
                     tanggalLahir = state.tanggalLahir.ifBlank { null },
                     email = state.email.ifBlank { null },
@@ -257,8 +275,20 @@ class ProfilViewModel @Inject constructor(
                     nomorRekening = state.nomorRekening.ifBlank { null },
                     namaPemilikRekening = state.namaPemilikRekening.ifBlank { null }
                 )
-            ).onSuccess {
-                _uiState.update { it.copy(isSaving = false, successMessage = "Profil berhasil diperbarui") }
+            ).onSuccess { profile ->
+                // Sinkron status NIK/foto dari server: NIK yang baru disimpan jadi read-only,
+                // preview foto dibuang (udah kesimpen -> "Foto KTP sudah diunggah").
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        successMessage = "Profil berhasil diperbarui",
+                        nik = profile.nik ?: it.nik,
+                        nikInput = if (profile.nik.isNullOrBlank()) it.nikInput else "",
+                        hasFotoKtp = profile.hasFotoKtp,
+                        fotoKtpLockReason = profile.fotoKtpLockReason,
+                        fotoKtpPreviewUri = null
+                    )
+                }
             }.onFailure { error ->
                 _uiState.update { it.copy(isSaving = false, errorMessage = error.message ?: "Gagal menyimpan profil") }
             }

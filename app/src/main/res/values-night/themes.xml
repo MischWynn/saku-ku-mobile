@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+    <!-- Sama persis kayak values/themes.xml - app selalu gelap, gak beda per mode sistem. -->
     <style name="Base.Theme.Sakuku" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <item name="android:windowBackground">@color/sakuku_window_bg</item>
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

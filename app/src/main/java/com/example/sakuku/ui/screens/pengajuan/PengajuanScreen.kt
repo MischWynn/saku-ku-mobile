@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -48,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -85,6 +85,10 @@ fun PengajuanScreen(
     onNavigateToCompleteProfile: () -> Unit = {},
     onNavigateToKtpDataDiri: () -> Unit = {},
     onNavigateToRekening: () -> Unit = {},
+    // Tinggi navbar mengambang (dari Scaffold MainScreen). Layar ini digambar sampai tepi bawah
+    // layar (di belakang navbar) biar background-nya gak kepotong - konten & bar estimasi yang
+    // perlu kelihatan digeser naik sebesar ini.
+    bottomInset: Dp = 0.dp,
     viewModel: PengajuanViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -106,7 +110,8 @@ fun PengajuanScreen(
         onDone = onSubmitSuccess,
         onNavigateToCompleteProfile = onNavigateToCompleteProfile,
         onNavigateToKtpDataDiri = onNavigateToKtpDataDiri,
-        onNavigateToRekening = onNavigateToRekening
+        onNavigateToRekening = onNavigateToRekening,
+        bottomInset = bottomInset
     )
 }
 
@@ -125,16 +130,18 @@ private fun PengajuanScreenContent(
     onDone: () -> Unit,
     onNavigateToCompleteProfile: () -> Unit = {},
     onNavigateToKtpDataDiri: () -> Unit = {},
-    onNavigateToRekening: () -> Unit = {}
+    onNavigateToRekening: () -> Unit = {},
+    bottomInset: Dp = 0.dp
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .sakukuBlobBackgroundTop()
-            .navigationBarsPadding()
     ) {
         if (uiState.submitSuccess) {
-            SuccessView(onDone = onDone)
+            Box(modifier = Modifier.padding(bottom = bottomInset)) {
+                SuccessView(onDone = onDone)
+            }
             return@Box
         }
 
@@ -153,7 +160,7 @@ private fun PengajuanScreenContent(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = ScreenPadding.Horizontal)
                     // Ruang ekstra di bawah biar konten terakhir gak ketutup bar estimasi.
-                    .padding(bottom = if (showStickyBar) 120.dp else 32.dp),
+                    .padding(bottom = (if (showStickyBar) 120.dp else 32.dp) + bottomInset),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 if (uiState.currentStep == 1) {
@@ -181,6 +188,7 @@ private fun PengajuanScreenContent(
             StickyEstimateBar(
                 uiState = uiState,
                 onNextStep = onNextStep,
+                bottomInset = bottomInset,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
@@ -276,6 +284,8 @@ private fun Step1Content(
                 text = when {
                     uiState.underage ->
                         "Pengajuan pinjaman hanya untuk nasabah berusia minimal ${Validators.MIN_AGE} tahun (sesuai syarat kepemilikan KTP)."
+                    uiState.ktpMissing ->
+                        "NIK dan foto KTP-mu belum lengkap. Lengkapi dulu di KTP & Data Diri supaya identitasmu bisa diverifikasi."
                     uiState.tanggalLahirMissing ->
                         "Tanggal lahirmu belum diisi. Lengkapi dulu di KTP & Data Diri sebelum bisa mengajukan pinjaman."
                     uiState.employmentIncomplete ->
@@ -293,7 +303,7 @@ private fun Step1Content(
                 GradientButton(
                     text = "Lengkapi Profil",
                     onClick = when {
-                        uiState.tanggalLahirMissing -> onNavigateToKtpDataDiri
+                        uiState.ktpMissing || uiState.tanggalLahirMissing -> onNavigateToKtpDataDiri
                         uiState.employmentIncomplete -> onNavigateToCompleteProfile
                         else -> onNavigateToRekening
                     }
@@ -516,14 +526,19 @@ private fun TenorOptionCard(tenor: BungaTenorResponse, cicilan: Double, isSelect
 
 // 2. Estimasi + tombol Lanjut dalam satu bar yang nempel di bawah.
 @Composable
-private fun StickyEstimateBar(uiState: PengajuanUiState, onNextStep: () -> Unit, modifier: Modifier = Modifier) {
+private fun StickyEstimateBar(
+    uiState: PengajuanUiState,
+    onNextStep: () -> Unit,
+    modifier: Modifier = Modifier,
+    bottomInset: Dp = 0.dp
+) {
     val tenor = uiState.selectedTenor ?: return
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, BgBottom.copy(alpha = 0.95f), BgBottom)))
             .padding(horizontal = 20.dp)
-            .padding(top = 20.dp, bottom = 12.dp)
+            .padding(top = 20.dp, bottom = 12.dp + bottomInset)
             .clip(RoundedCornerShape(20.dp))
             .background(Color(0xFF0F2420))
             .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
@@ -822,9 +837,11 @@ private fun RekeningTujuanCard(uiState: PengajuanUiState) {
 
 @Composable
 private fun SummaryRow(label: String, value: String) {
+    // Label weight(1f): di layar sempit/font gede, nilai (nominal panjang) tetap utuh di kanan,
+    // label yang ngalah wrap - bukan nilainya kejepit jadi sempit.
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Color.White.copy(alpha = 0.55f), fontFamily = PlusJakartaSans, fontSize = 11.5.sp)
-        Text(value, color = Color.White, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+        Text(label, color = Color.White.copy(alpha = 0.55f), fontFamily = PlusJakartaSans, fontSize = 11.5.sp, modifier = Modifier.weight(1f).padding(end = 12.dp))
+        Text(value, color = Color.White, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 11.5.sp, textAlign = TextAlign.End)
     }
 }
 

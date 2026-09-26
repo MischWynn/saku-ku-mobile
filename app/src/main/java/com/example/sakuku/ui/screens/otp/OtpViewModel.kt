@@ -27,6 +27,9 @@ data class OtpUiState(
     val resendCooldown: Int = 0,
     val errorMessage: String? = null,
     val infoMessage: String? = null,
+    // One-shot Toast (pola sama kayak RegisterUiState.toastMessage) - teks infoMessage inline
+    // sering ketutup keyboard, jadi konfirmasi resend juga dimunculin lewat Toast.
+    val toastMessage: String? = null,
     val verified: Boolean = false
 ) {
     val canSubmit: Boolean get() = code.length == CODE_LENGTH && !isSubmitting
@@ -87,7 +90,13 @@ class OtpViewModel @Inject constructor(
             // yang generate+kirim kode baru tiap dipanggil ulang.
             authRepository.forgotPassword(state.email)
                 .onSuccess {
-                    _uiState.update { it.copy(isResending = false, infoMessage = "Kode OTP baru sudah dikirim") }
+                    _uiState.update {
+                        it.copy(
+                            isResending = false,
+                            infoMessage = "Kode OTP baru sudah dikirim ke ${state.email}. Cek juga folder Spam.",
+                            toastMessage = "Kode OTP baru sudah dikirim"
+                        )
+                    }
                     startCooldown()
                 }
                 .onFailure { e ->
@@ -96,6 +105,10 @@ class OtpViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    fun consumeToast() {
+        _uiState.update { it.copy(toastMessage = null) }
     }
 
     private fun startCooldown() {

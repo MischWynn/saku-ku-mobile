@@ -18,11 +18,9 @@ import javax.inject.Inject
 data class GooglePrefill(val email: String, val suggestedName: String?)
 
 data class LoginUiState(
-    // TODO: kosongin lagi sebelum submit - ini cuma prefill buat testing di emulator.
-    // Password dummy data emang pake tanda seru ("Password123!"), BUKAN "Password123" -
-    // sempet salah ketik di sini, baru ketauan pas ngetes hash bcrypt yang rusak (13 Sept).
-    val identifier: String = "novita.sari@mail.com",
-    val password: String = "Password123!",
+    // Email ATAU nomor HP - backend (AppCustomerDetailsService) nerima 08../62../+62.. sama aja.
+    val identifier: String = "",
+    val password: String = "",
     val rememberMe: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,

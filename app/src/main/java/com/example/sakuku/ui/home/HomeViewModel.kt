@@ -34,6 +34,7 @@ data class TagihanPreview(val cicilanBulanan: Double, val dueDateLabel: String?,
 // PengajuanViewModel/PengajuanService, biar meter di Beranda gak bilang "lengkap" padahal
 // pengajuannya masih ditolak.
 enum class ProfileRequirement(val label: String) {
+    KTP("NIK & foto KTP"),
     TANGGAL_LAHIR("Tanggal lahir"),
     PEKERJAAN("Pekerjaan & pendapatan"),
     REKENING("Rekening bank")
@@ -183,6 +184,7 @@ class HomeViewModel @Inject constructor(
                     unreadNotifCount = notifResult.getOrNull()?.count { n -> !n.isRead } ?: current.unreadNotifCount,
                     missingRequirements = profile?.let { p ->
                         buildList {
+                            if (p.nik.isNullOrBlank() || !p.hasFotoKtp) add(ProfileRequirement.KTP)
                             if (p.tanggalLahir.isNullOrBlank()) add(ProfileRequirement.TANGGAL_LAHIR)
                             if (p.pekerjaan.isNullOrBlank() || p.pendapatanBulanan == null) add(ProfileRequirement.PEKERJAAN)
                             if (p.namaBank.isNullOrBlank() || p.nomorRekening.isNullOrBlank() || p.namaPemilikRekening.isNullOrBlank()) {

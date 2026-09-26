@@ -3,7 +3,7 @@ package com.example.sakuku.ui.screens.register
 import com.example.sakuku.util.Validators
 import android.content.Context
 import android.net.Uri
-import android.util.Base64
+import com.example.sakuku.ui.components.encodeKtpPhoto
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sakuku.data.local.TokenDataStore
@@ -405,7 +405,14 @@ class RegisterViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isResendingOtp = true, errorMessage = null, otpInfoMessage = null)
             authRepository.resendOtp(s.email)
                 .onSuccess {
-                    _uiState.value = _uiState.value.copy(isResendingOtp = false, otpInfoMessage = "Kode OTP baru sudah dikirim")
+                    // Toast juga, bukan cuma teks inline - teks inline-nya ada di bawah baris
+                    // "Kirim ulang OTP", sering ketutup keyboard (OTP field lagi fokus), jadi
+                    // user gak pernah liat konfirmasinya.
+                    _uiState.value = _uiState.value.copy(
+                        isResendingOtp = false,
+                        otpInfoMessage = "Kode OTP baru sudah dikirim ke ${s.email}. Cek juga folder Spam.",
+                        toastMessage = "Kode OTP baru sudah dikirim"
+                    )
                     startResendCooldown()
                 }
                 .onFailure { error ->
@@ -450,15 +457,7 @@ class RegisterViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            val fotoBase64 = s.fotoKtpPreviewUri?.let { uri ->
-                try {
-                    appContext.contentResolver.openInputStream(uri)?.use { input ->
-                        Base64.encodeToString(input.readBytes(), Base64.NO_WRAP)
-                    }
-                } catch (e: Exception) {
-                    null
-                }
-            }
+            val fotoBase64 = s.fotoKtpPreviewUri?.let { uri -> encodeKtpPhoto(appContext, uri) }
 
             customerRepository.updateMe(
                 CustomerUpdateRequest(

@@ -1,6 +1,8 @@
 package com.example.sakuku.ui.screens
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -72,13 +74,26 @@ fun MainScreen(
             )
         }
     ) { innerPadding ->
+        // Aturan inset buat SEMUA layar di sini:
+        // - Atas: jarak status bar dipasang sekali di sini (screenArea) lalu di-consume, jadi
+        //   layar yang juga pakai statusBarsPadding() sendiri gak dapet jarak dobel.
+        // - Bawah: layar digambar sampai tepi bawah layar (di belakang navbar mengambang) biar
+        //   background-nya gak kepotong. Konten yang harus kelihatan digeser naik sendiri oleh
+        //   tiap layar - lewat parameter bottomInset, atau (sub-layar Profil & Bantuan) clearance
+        //   120dp + navigationBarsPadding() yang udah ada di layarnya.
+        val statusBarTop = innerPadding.calculateTopPadding()
+        val bottomInset = innerPadding.calculateBottomPadding()
+        val screenArea = Modifier
+            .padding(top = statusBarTop)
+            .consumeWindowInsets(PaddingValues(top = statusBarTop))
+
         NavHost(
             navController = navController,
             startDestination = "home",
             modifier = Modifier.fillMaxSize().hazeSource(state = hazeState)
         ) {
             composable("home") {
-                Box(Modifier.padding(top = innerPadding.calculateTopPadding())) {
+                Box(screenArea) {
                     HomeScreen(
                         onNavigateToLogin = onNavigateToLogin,
                         onNavigateToRegister = onNavigateToRegister,
@@ -109,16 +124,18 @@ fun MainScreen(
                 }
             }
             composable("plafond") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     PlafondScreen(
+                        bottomInset = bottomInset,
                         onBack = { navController.popBackStack() },
                         onNavigateToRegister = onNavigateToRegister
                     )
                 }
             }
             composable("history") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     RiwayatScreen(
+                        bottomInset = bottomInset,
                         onNavigateToApply = {
                             navController.navigate("apply") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -135,16 +152,18 @@ fun MainScreen(
                 arguments = listOf(navArgument("id") { type = NavType.StringType })
             ) { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("id") ?: ""
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     StatusPinjamanDetailScreen(
+                        bottomInset = bottomInset,
                         id = id,
                         onBack = { navController.popBackStack() }
                     )
                 }
             }
             composable("apply") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     PengajuanScreen(
+                        bottomInset = bottomInset,
                         onBack = {
                             navController.navigate("home") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -171,13 +190,14 @@ fun MainScreen(
                 // disentuh - lagi dikerjain user sendiri buat versi logged-in). Route ini
                 // tinggal dipanggil navController.navigate("bayar") begitu tombol "Bayar
                 // Cicilan"-nya siap ditaro di Home.
-                Box(Modifier.padding(innerPadding)) {
-                    BayarScreen(onBack = { navController.popBackStack() })
+                Box(screenArea) {
+                    BayarScreen(onBack = { navController.popBackStack() }, bottomInset = bottomInset)
                 }
             }
             composable("notification") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     NotifikasiScreen(
+                        bottomInset = bottomInset,
                         onBack = { navController.popBackStack() },
                         onOpenDisbursement = { notifId -> navController.navigate("notification_detail/$notifId") },
                         onOpenStatus = { pengajuanId -> navController.navigate("history_detail/$pengajuanId") }
@@ -186,8 +206,9 @@ fun MainScreen(
             }
             composable("notification_detail/{id}") { backStackEntry ->
                 val notifId = backStackEntry.arguments?.getString("id") ?: ""
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     NotifikasiDetailScreen(
+                        bottomInset = bottomInset,
                         notificationId = notifId,
                         onBack = { navController.popBackStack() },
                         onLihatTagihan = { navController.navigate("bayar") }
@@ -195,7 +216,7 @@ fun MainScreen(
                 }
             }
             composable("profile") {
-                Box(Modifier.padding(top = innerPadding.calculateTopPadding())) {
+                Box(screenArea) {
                     ProfilScreen(
                         onNavigateToKtpDataDiri = { navController.navigate("ktp_data_diri") },
                         onNavigateToEditDataDiri = { navController.navigate("edit_data_diri") },
@@ -209,46 +230,47 @@ fun MainScreen(
                 }
             }
             composable("ktp_data_diri") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     KtpDataDiriScreen(onBack = { navController.popBackStack() })
                 }
             }
             composable("edit_data_diri") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     EditDataDiriScreen(onBack = { navController.popBackStack() })
                 }
             }
 
             composable("kontak") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     KontakScreen(onBack = { navController.popBackStack() })
                 }
             }
             composable("data_pekerjaan") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     DataPekerjaanScreen(onBack = { navController.popBackStack() })
                 }
             }
             composable("keamanan_akun") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     KeamananAkunScreen(onBack = { navController.popBackStack() }, onLoggedOut = onLoggedOut)
                 }
             }
             composable("rekening_bank") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     RekeningBankScreen(onBack = { navController.popBackStack() })
                 }
             }
             composable("simulasi") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     SimulasiScreen(
+                        bottomInset = bottomInset,
                         onBack = { navController.popBackStack() },
                         onNavigateToLogin = onNavigateToLogin,
                     )
                 }
             }
             composable("bantuan") {
-                Box(Modifier.padding(innerPadding)) {
+                Box(screenArea) {
                     BantuanScreen(onBack = { navController.popBackStack() })
                 }
             }
